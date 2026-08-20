@@ -86,7 +86,15 @@ def search_counts(conn, text):
 # ------------------------------------------------------------------ screen 2
 
 def _histogram(conn, lo, hi):
-    """`BINS` equal-width bars between lo and hi, zero-filled."""
+    """`BINS` equal-width bars between lo and hi, zero-filled.
+
+    A sparse niche can put the 1st and 99th percentile on the same number — a
+    handful of products all at $19.99. Collapsing to an empty chart would read
+    as "no data", which is a lie, so the range widens around the single price
+    and the market shows as the one spike it actually is.
+    """
+    if lo is not None and hi is not None and hi <= lo:
+        lo, hi = lo * 0.75, (hi or 1.0) * 1.25
     if lo is None or hi is None or hi <= lo:
         return [], 0.0
     width = (hi - lo) / BINS
@@ -202,6 +210,10 @@ def niche(conn, text):
     priced = conn.execute(
         "SELECT count(*) FROM m WHERE price IS NOT NULL").fetchone()[0]
     lo, hi = _quantile(conn, 0.01), _quantile(conn, 0.99)
+    # A market priced at a single point has its range widened for the chart, so
+    # the flanking bars are empty by construction. Reporting them as white space
+    # would be inventing an insight — the one thing a sales tool must not do.
+    single_price = lo is not None and hi is not None and hi <= lo
     histogram, width = _histogram(conn, lo, hi)
     return {
         "query": text,
@@ -209,7 +221,7 @@ def niche(conn, text):
                      "median_price": _quantile(conn, 0.5)},
         "range": {"lo": lo, "hi": hi, "bin_width": width},
         "histogram": histogram,
-        "gaps": _gaps(histogram, priced),
+        "gaps": [] if single_price else _gaps(histogram, priced),
         "bands": _bands(conn) if priced else [],
         "vendors": _vendors(conn),
         "breadth": _breadth(conn),
