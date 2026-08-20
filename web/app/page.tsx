@@ -97,7 +97,7 @@ export default function SearchPage() {
             <StatTile
               label="Index built"
               literal={day(meta.indexed_at)}
-              meta={minutes ? `${minutes} min build` : undefined}
+              meta={minutes ? `${minutes} min last pass` : undefined}
               caption={`${since(meta.indexed_at)} · from the crawl's cold shards`}
             />
             <StatTile

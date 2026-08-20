@@ -91,17 +91,41 @@ store list covered):
 
 | | |
 |---|---|
-| Source shards | 158 product files (1.3 GB) + 193 observation files (1.1 GB) |
-| Observation rows read | ~100M, collapsed to 24.5M product prices |
-| Products indexed | 23.1M |
-| Stores | 15.7k |
-| Build time | see the `build_seconds` row in `meta` after your run; ~25 min here |
-| `data/console.db` | ~7 GB |
+| Source shards | 351 files, 2.4 GB gzipped (one of them a 441 MB migration dump) |
+| Observation rows read | ~100M, collapsed to 28.6M product prices |
+| Product rows read | 31,170,184, of which **701,948 were duplicates** and removed |
+| Products indexed | **30,468,236** (28,639,398 with a price) |
+| Stores | **18,403** |
+| Build time | ~45 min end to end on 20 cores with the crawl running alongside |
+| `data/console.db` | **7.57 GB** |
+
+The exact figures for your build are in the `meta` table and on screen in the
+top bar. Duplicates are real and worth removing: `coldstore` warns that a store
+retried after a crash re-writes its product metadata, and this crawl survived
+two machine reboots.
 
 The build writes to `console.db.building` and renames on success, so an
 interrupted run never leaves a half-index in place. It also uses
 `journal_mode=OFF` and `synchronous=OFF` — durability buys nothing for a file
 that is rebuilt from source.
+
+## Measured latency
+
+Against the finished index, through the API, on this machine:
+
+| query | endpoint | cold | warm |
+|---|---|---|---|
+| `sunglasses` (prewarmed) | search | **2 ms** | 2 ms |
+| `sunglasses` (prewarmed) | niche | **3 ms** | 2 ms |
+| `sunglasses` (prewarmed) | stores | **26 ms** | 14 ms |
+| `magnesium supplement` (never seen) | search | 462 ms | 1 ms |
+| `magnesium supplement` (never seen) | niche | 109 ms | 3 ms |
+
+Two things make that work. The API warms every prefix of the eight suggested
+niches on startup (59.5 s in a background thread, while uvicorn already serves),
+and short prefix terms are refused: an FTS5 prefix walks most of a 30M-row index,
+and cold counts measured **17.8 s for `su`, 5.4 s for `sun`, 538 ms for `sung`**.
+Four characters is the floor, enforced on both sides.
 
 ## Run it
 
@@ -158,6 +182,15 @@ candles, dresses, sneakers, coffee, skincare, jewelry.
   shards carry no currency (it lives in `/meta.json`, which is not collected), so
   a market with non-USD stores mixes units. Rendering a wrong ISO code would be
   worse than rendering none.
+- **The histogram frames Tukey's fence, not the full range.** `sunglasses` runs
+  from $5 at the 1st percentile to $99,900 at the 99th, and one product is
+  priced at $28.7M, so a percentile frame puts every real product in one bar.
+  The chart shows `Q3 + 1.5 x IQR` and the payload reports how many products
+  fall outside it, so the trim is disclosed rather than hidden.
+- **Dense markets have no white space, and the console says so.** Measured:
+  sunglasses, coffee, candles, mattresses and wedding dresses are all priced
+  continuously. Specialist niches are where the gaps live — `saxophone` reports
+  real holes at $1,547–$1,785 and $2,022–$2,379. Pick the niche accordingly.
 - **Price is the minimum variant price seen for a product** — the "from $X" a
   shopper is quoted — and it ignores `scraped_at`. Every observation currently on
   disk comes from a single crawl day, so the two definitions coincide; when the
