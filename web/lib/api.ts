@@ -124,8 +124,15 @@ export function useApi<T>(path: string | null, debounceMs = 0) {
   return { data, error, loading };
 }
 
+// A one-character prefix query makes FTS5 walk essentially the whole term
+// dictionary. Two characters is where it stops being pathological, and nobody
+// picks a market from one letter anyway.
+export const MIN_QUERY = 2;
+
 export const searchPath = (q: string) =>
-  q.trim() ? `/api/search?q=${encodeURIComponent(q.trim())}` : null;
+  q.trim().length >= MIN_QUERY
+    ? `/api/search?q=${encodeURIComponent(q.trim())}`
+    : null;
 export const nichePath = (q: string) =>
   q.trim() ? `/api/niche?q=${encodeURIComponent(q.trim())}` : null;
 export const storesPath = (q: string) =>

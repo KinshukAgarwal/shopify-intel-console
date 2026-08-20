@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { useApi, searchPath, type SearchCounts } from "@/lib/api";
+import { useApi, searchPath, MIN_QUERY, type SearchCounts } from "@/lib/api";
 import { num, short } from "@/lib/format";
 
 /** Measured on the live index — every one of these returns a real market. */
@@ -53,7 +53,7 @@ export function NicheCommandBody({
     router.push(`/niche?q=${encodeURIComponent(q)}`);
   };
 
-  const typed = query.trim().length > 0;
+  const typed = query.trim().length >= MIN_QUERY;
   const settled = data && data.query.trim() === query.trim();
   const found = settled && data.products > 0;
 

@@ -165,7 +165,8 @@ def build_products(conn, limit=None):
             product_type TEXT
         );
         CREATE VIRTUAL TABLE products_fts USING fts5(
-            text, content='', tokenize='unicode61 remove_diacritics 2');
+            text, content='', contentless_delete=1,
+            tokenize='unicode61 remove_diacritics 2');
     """)
     rows, docs = [], []
     seen = 0
@@ -202,10 +203,37 @@ def _flush(conn, rows, docs):
 
 # ------------------------------------------------------------------ rollups
 
+def dedupe(conn):
+    """Drop repeat rows for the same (store_id, product_id).
+
+    coldstore's own docstring warns of this: a store retried after a crash
+    re-writes its product metadata, so a shard can carry the same product
+    twice, and this crawl survived two machine reboots. Left in, every
+    duplicate would inflate the product count, the store count and the
+    histogram. `contentless_delete=1` on the FTS table is what makes the
+    matching index rows removable without keeping the text around.
+    """
+    conn.execute("CREATE INDEX idx_products_key ON products (store_id, product_id)")
+    conn.executescript("""
+        CREATE TEMP TABLE keep AS
+          SELECT min(id) AS id FROM products GROUP BY store_id, product_id;
+        CREATE INDEX temp.idx_keep ON keep (id);
+        CREATE TEMP TABLE dupes AS
+          SELECT p.id FROM products p LEFT JOIN keep k ON k.id = p.id
+          WHERE k.id IS NULL;
+    """)
+    n = conn.execute("SELECT count(*) FROM dupes").fetchone()[0]
+    if n:
+        conn.execute("DELETE FROM products_fts WHERE rowid IN (SELECT id FROM dupes)")
+        conn.execute("DELETE FROM products WHERE id IN (SELECT id FROM dupes)")
+    conn.executescript("DROP TABLE keep; DROP TABLE dupes;")
+    conn.commit()
+    log("deduped %s repeated product rows" % f"{n:,}")
+    return n
+
+
 def attach_prices(conn):
     log("joining prices onto products")
-    conn.execute("CREATE UNIQUE INDEX idx_products_key "
-                 "ON products (store_id, product_id)")
     conn.execute("""
         UPDATE products SET price = (
             SELECT price FROM price
@@ -304,10 +332,13 @@ def main():
     n_prices = build_price(conn, args.limit)
     log("prices: %s products" % f"{n_prices:,}")
     n_products = build_products(conn, args.limit)
+    n_duplicates = dedupe(conn)
+    n_products -= n_duplicates
     attach_prices(conn)
     n_stores = build_stores(conn)
     set_meta(conn, indexed_at=int(time.time()), fingerprint=stamp,
              n_products=n_products, n_stores=n_stores,
+             n_duplicates=n_duplicates,
              build_seconds=round(time.time() - started, 1))
     conn.executescript("PRAGMA journal_mode = DELETE; PRAGMA optimize;")
     conn.close()
