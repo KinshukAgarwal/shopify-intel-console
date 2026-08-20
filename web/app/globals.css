@@ -2,49 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
-/* shadcn's initialiser emits oklch() tokens for its Tailwind v4 preset, but
-   this project is on Tailwind v3, whose generated config wraps every token in
-   hsl(). Mismatched, every colour resolves to nothing. These are the same
-   tokens as HSL triples, tuned dark-first for screen recording: near-black
-   ground, violet signal, amber reserved exclusively for white-space gaps. */
+/* Light mode only. There is no dark palette and no theme toggle: the console is
+   built to be screen-recorded, and every reference dashboard the operator
+   approved is a white one. Tokens are HSL triples because the generated
+   Tailwind v3 config wraps each one in hsl(); shadcn's oklch defaults do not
+   survive that wrapper. */
 @layer base {
-  :root,
-  .dark {
-    --background: 240 12% 4%;
-    --foreground: 240 8% 96%;
+  :root {
+    /* Ground. Page is pure white, the app shell one step down so the cards
+       sitting on it read as cards without needing a shadow. */
+    --background: 0 0% 100%;
+    --foreground: 220 39% 11%;        /* #111827 */
+    --shell: 210 20% 98%;             /* #F8F9FA */
 
-    --card: 240 10% 7%;
-    --card-foreground: 240 8% 96%;
-    --popover: 240 12% 6%;
-    --popover-foreground: 240 8% 96%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 39% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 39% 11%;
 
-    --primary: 258 90% 68%;
-    --primary-foreground: 240 12% 5%;
+    /* The single accent. Indigo, spent only on the active nav item, the KPI
+       delta chips and the primary histogram series. */
+    --primary: 243 75% 59%;           /* #4F46E5 */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 8% 13%;
-    --secondary-foreground: 240 8% 96%;
+    --secondary: 220 14% 96%;         /* #F3F4F6 */
+    --secondary-foreground: 220 39% 11%;
 
-    --muted: 240 8% 12%;
-    --muted-foreground: 240 6% 58%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;   /* #6B7280 */
 
-    --accent: 240 8% 15%;
-    --accent-foreground: 240 8% 96%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 220 39% 11%;
 
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 240 8% 96%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 240 8% 16%;
-    --input: 240 8% 18%;
-    --ring: 258 90% 68%;
+    --success: 160 84% 30%;
 
-    /* Recharts series. 1 is the histogram; 2 is the white-space highlight. */
-    --chart-1: 258 90% 68%;
-    --chart-2: 38 96% 58%;
-    --chart-3: 190 90% 55%;
-    --chart-4: 330 80% 62%;
-    --chart-5: 150 65% 50%;
+    --border: 220 13% 91%;            /* #E5E7EB */
+    --input: 220 13% 91%;
+    --ring: 243 75% 59%;
 
-    --radius: 0.75rem;
+    /* Recharts series. 1 is the histogram bar; 2 is reserved exclusively for
+       white space — amber never appears anywhere else in the product, so a
+       viewer learns its meaning from one glance. */
+    --chart-1: 243 75% 59%;
+    --chart-2: 25 95% 53%;            /* #F97316 */
+    --chart-3: 199 89% 48%;
+    --chart-4: 160 84% 39%;
+    --chart-5: 271 81% 56%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 210 20% 98%;
+    --sidebar-foreground: 220 9% 46%;
+    --sidebar-primary: 243 75% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 100%;
+    --sidebar-accent-foreground: 220 39% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 243 75% 59%;
   }
 }
 
@@ -58,23 +75,27 @@
   }
 }
 
+@layer components {
+  /* The three type roles from the spec, as classes rather than a repeated
+     six-utility incantation on every tile. */
+  .stat-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground;
+  }
+  .stat-value {
+    @apply text-[30px] font-semibold leading-none tracking-[-0.02em] text-foreground;
+    font-variant-numeric: tabular-nums;
+  }
+  .panel {
+    @apply rounded-xl border border-border bg-card;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+}
+
 @layer utilities {
-  /* One decorative gradient, reused. Cheaper than a background image and it
-     keeps the hero from looking like a blank terminal on camera. */
-  .aurora {
-    background-image:
-      radial-gradient(60rem 34rem at 12% -10%, hsl(258 90% 68% / 0.16), transparent 62%),
-      radial-gradient(46rem 28rem at 92% 4%, hsl(190 90% 55% / 0.1), transparent 60%),
-      radial-gradient(40rem 26rem at 50% 108%, hsl(330 80% 62% / 0.07), transparent 60%);
-  }
-  .grid-lines {
-    background-image:
-      linear-gradient(hsl(240 8% 16% / 0.5) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(240 8% 16% / 0.5) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(60rem 40rem at 50% 0%, #000 20%, transparent 78%);
-  }
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+  .bg-shell {
+    background-color: hsl(var(--shell));
   }
 }

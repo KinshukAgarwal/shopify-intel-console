@@ -121,7 +121,18 @@ const columns: ColumnDef<typeof features, StoreRow, any>[] = [
   }),
 ];
 
-export function StoreTable({ rows }: { rows: StoreRow[] | null }) {
+/**
+ * `compact` caps the visible rows on the niche overview, where the table is the
+ * last of four sections rather than the whole screen. It clips the rendered
+ * rows only — sorting and filtering still run over the full set.
+ */
+export function StoreTable({
+  rows,
+  compact = false,
+}: {
+  rows: StoreRow[] | null;
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [filter, setFilter] = useState("");
   const data = useMemo(() => rows ?? [], [rows]);
@@ -138,36 +149,41 @@ export function StoreTable({ rows }: { rows: StoreRow[] | null }) {
 
   if (!rows) {
     return (
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-72" />
-        {Array.from({ length: 12 }).map((_, index) => (
-          <Skeleton key={index} className="h-12 w-full" />
+      <div className="panel overflow-hidden">
+        <div className="border-b border-border p-3">
+          <Skeleton className="h-9 w-72" />
+        </div>
+        {Array.from({ length: compact ? 8 : 12 }).map((_, index) => (
+          <Skeleton key={index} className="m-3 h-8" />
         ))}
       </div>
     );
   }
 
-  const visible = table.getRowModel().rows;
+  const matched = table.getRowModel().rows;
+  const visible = compact ? matched.slice(0, 10) : matched;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="panel overflow-hidden">
+      <div className="flex items-center justify-between gap-4 border-b border-border px-3 py-3">
         <Input
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           placeholder="Filter by domain…"
-          className="max-w-xs"
+          className="h-9 max-w-xs bg-white"
         />
-        <p className="text-sm text-muted-foreground tabular">
-          {num(visible.length)} of {num(rows.length)} stores
+        <p className="text-[12px] tabular text-muted-foreground">
+          {compact && matched.length > visible.length
+            ? `Top ${num(visible.length)} of ${num(matched.length)} stores`
+            : `${num(visible.length)} of ${num(rows.length)} stores`}
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card/50">
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id} className="hover:bg-transparent">
+              <TableRow key={group.id} className="border-border bg-secondary/40 hover:bg-secondary/40">
                 {group.headers.map((header) => {
                   const sorted = header.column.getIsSorted();
                   const Icon =
@@ -177,11 +193,11 @@ export function StoreTable({ rows }: { rows: StoreRow[] | null }) {
                         ? ArrowDown
                         : ChevronsUpDown;
                   return (
-                    <TableHead key={header.id} className="h-11">
+                    <TableHead key={header.id} className="h-10 whitespace-nowrap px-4">
                       <button
                         onClick={header.column.getToggleSortingHandler()}
                         className={cn(
-                          "flex items-center gap-1.5 transition-colors hover:text-foreground",
+                          "flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors hover:text-foreground",
                           sorted && "text-foreground"
                         )}
                       >
@@ -217,10 +233,10 @@ export function StoreTable({ rows }: { rows: StoreRow[] | null }) {
               <TableRow
                 key={row.id}
                 onClick={() => router.push(`/stores/${row.original.id}`)}
-                className="group cursor-pointer border-border/50"
+                className="group cursor-pointer border-border hover:bg-secondary/50"
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="py-3">
+                  <TableCell key={cell.id} className="h-12 whitespace-nowrap px-4 py-0 text-[13px]">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

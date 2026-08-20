@@ -23,8 +23,8 @@ export default function StoreDetailPage() {
   const { data, error } = useApi<StoreDetail>(`/api/store/${id}`);
 
   return (
-    <div className="pt-10">
-      <Button asChild variant="ghost" className="mb-6 -ml-3 text-muted-foreground">
+    <div className="mx-auto w-full max-w-[1560px]">
+      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-3 text-muted-foreground">
         <Link href="/stores">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to the store list
@@ -32,7 +32,7 @@ export default function StoreDetailPage() {
       </Button>
 
       {error && (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-8 text-center text-sm text-muted-foreground">
+        <div className="panel border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-muted-foreground">
           {error}
         </div>
       )}
@@ -52,7 +52,7 @@ export default function StoreDetailPage() {
       {data && (
         <div className="space-y-6">
           <div>
-            <h1 className="text-4xl font-semibold tracking-tight">{data.domain}</h1>
+            <h1 className="text-[28px] font-semibold tracking-tight">{data.domain}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Everything the index holds for this store today.
             </p>
@@ -68,19 +68,17 @@ export default function StoreDetailPage() {
                 value: `${money(data.min_price, 0)} – ${money(data.max_price, 0)}`,
               },
             ].map((stat) => (
-              <Card key={stat.label} className="border-border/70 bg-card/70">
+              <Card key={stat.label} className="panel">
                 <CardContent className="p-5">
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    {stat.label}
-                  </p>
-                  <p className="mt-2 text-2xl font-semibold tabular">{stat.value}</p>
+                  <p className="stat-label">{stat.label}</p>
+                  <p className="mt-3 stat-value">{stat.value}</p>
                 </CardContent>
               </Card>
             ))}
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="border-border/70 bg-card/70">
+            <Card className="panel">
               <CardHeader>
                 <CardTitle className="text-base">Top product types</CardTitle>
                 <CardDescription>Free text, exactly as the store publishes it.</CardDescription>
@@ -102,7 +100,7 @@ export default function StoreDetailPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/70 bg-card/70">
+            <Card className="panel">
               <CardHeader>
                 <CardTitle className="text-base">Top vendors</CardTitle>
                 <CardDescription>Who this store actually stocks.</CardDescription>
@@ -127,7 +125,7 @@ export default function StoreDetailPage() {
 
           <Separator />
 
-          <Card className="border-dashed border-border/70 bg-card/30">
+          <Card className="panel border-dashed">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Lock className="h-4 w-4 text-muted-foreground" />
@@ -145,7 +143,7 @@ export default function StoreDetailPage() {
                   (label) => (
                     <div
                       key={label}
-                      className="rounded-lg border border-border/50 bg-background/40 px-4 py-6 text-center"
+                      className="rounded-lg border border-border bg-secondary/40 px-4 py-6 text-center"
                     >
                       <p className="text-sm text-muted-foreground">{label}</p>
                       <p className="mt-1 text-xs text-muted-foreground/70">

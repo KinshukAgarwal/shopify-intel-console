@@ -137,3 +137,9 @@ export const nichePath = (q: string) =>
   q.trim() ? `/api/niche?q=${encodeURIComponent(q.trim())}` : null;
 export const storesPath = (q: string) =>
   q.trim() ? `/api/stores?q=${encodeURIComponent(q.trim())}&limit=1000` : null;
+
+/** The niches the API prewarms on startup — every one returns a real market. */
+export const SUGGESTED = [
+  "sunglasses", "supplements", "candles", "dresses",
+  "sneakers", "coffee", "skincare", "jewelry",
+];

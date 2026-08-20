@@ -3,12 +3,22 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { Store } from "lucide-react";
+import { CircleDollarSign, Package, Store, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { StoreTable } from "@/components/store-table";
+import { StatTile, StatTileSkeleton } from "@/components/headline-stats";
 import { useApi, storesPath, type StoreRow } from "@/lib/api";
-import { num } from "@/lib/format";
+
+/** Median of a numeric column, ignoring the stores that have no price at all. */
+function median(values: number[]) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = sorted.length >> 1;
+  return sorted.length % 2
+    ? sorted[middle]
+    : (sorted[middle - 1] + sorted[middle]) / 2;
+}
 
 function StoresView() {
   const query = useSearchParams().get("q") ?? "";
@@ -29,43 +39,74 @@ function StoresView() {
     );
   }
 
+  const matched = data?.reduce((total, row) => total + row.matched, 0) ?? 0;
+  const deepest = data?.reduce(
+    (best, row) => (row.matched > (best?.matched ?? 0) ? row : best),
+    undefined as StoreRow | undefined
+  );
+  const medianAvg = median(
+    (data ?? []).map((row) => row.avg_price).filter((v): v is number => v != null)
+  );
+
   return (
-    <div className="pt-10">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
-            Competitive set
-          </p>
-          <h1 className="mt-2 text-4xl font-semibold capitalize tracking-tight">
-            {query}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {data
-              ? `${num(data.length)} stores selling into this market. Click any row for the store view.`
-              : "Loading the competitive set…"}
-          </p>
-        </div>
-        <Button asChild variant="secondary">
-          <Link href={`/niche?q=${encodeURIComponent(query)}`}>
-            Back to market overview
-          </Link>
-        </Button>
+    <div className="mx-auto w-full max-w-[1560px] space-y-4 pb-10">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {data ? (
+          <>
+            <StatTile
+              label="Stores competing"
+              value={data.length}
+              icon={Store}
+              note="Ranked by products in this niche"
+            />
+            <StatTile
+              label="Products in niche"
+              value={matched}
+              icon={Package}
+              delay={0.06}
+              note="Summed across every store below"
+            />
+            <StatTile
+              label="Median store price"
+              value={Math.round(medianAvg)}
+              prefix="$"
+              icon={CircleDollarSign}
+              delay={0.12}
+              note="Median of each store's in-niche average"
+            />
+            <StatTile
+              label="Deepest catalogue"
+              literal={deepest ? String(deepest.matched) : "—"}
+              value={0}
+              icon={Users}
+              note={deepest ? deepest.domain : "No stores matched"}
+            />
+          </>
+        ) : (
+          [0, 1, 2, 3].map((index) => <StatTileSkeleton key={index} />)
+        )}
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-8 text-center">
+        <div className="panel border-destructive/30 bg-destructive/5 p-8 text-center">
           <p className="text-sm text-muted-foreground">{error}</p>
         </div>
       ) : (
         <StoreTable rows={data} />
       )}
+
+      <p className="text-[12px] text-muted-foreground">
+        Prices are the lowest variant price seen per product. Stores publish in
+        their own currency and the crawl does not carry it yet, so figures are
+        shown with a bare $.
+      </p>
     </div>
   );
 }
 
 export default function StoresPage() {
   return (
-    <Suspense fallback={<div className="pt-10" />}>
+    <Suspense fallback={<div />}>
       <StoresView />
     </Suspense>
   );

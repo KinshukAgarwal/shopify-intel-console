@@ -6,22 +6,21 @@ import { Suspense } from "react";
 import { ArrowRight, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { HeadlineStats } from "@/components/headline-stats";
 import { PriceHistogram } from "@/components/price-histogram";
-import { GapCallouts } from "@/components/gap-callouts";
 import {
   AssortmentBreadth,
   BrandConcentration,
-  PriceBands,
   PriceRangeStrip,
 } from "@/components/market-panels";
-import AnimatedContent from "@/components/AnimatedContent";
-import { useApi, nichePath, type Niche } from "@/lib/api";
+import { StoreTable } from "@/components/store-table";
+import { useApi, nichePath, storesPath, type Niche, type StoreRow } from "@/lib/api";
+import { num } from "@/lib/format";
 
 function NicheView() {
   const query = useSearchParams().get("q") ?? "";
   const { data, error } = useApi<Niche>(nichePath(query));
+  const { data: stores } = useApi<StoreRow[]>(storesPath(query));
 
   if (!query) {
     return (
@@ -40,7 +39,7 @@ function NicheView() {
 
   if (error) {
     return (
-      <div className="mt-24 rounded-xl border border-destructive/40 bg-destructive/5 p-8 text-center">
+      <div className="panel mt-8 border-destructive/30 bg-destructive/5 p-8 text-center">
         <h2 className="text-lg font-medium">The index is not answering</h2>
         <p className="mt-1 text-sm text-muted-foreground">{error}</p>
         <p className="mt-3 text-sm text-muted-foreground">
@@ -51,73 +50,68 @@ function NicheView() {
     );
   }
 
-  const nothing = data && data.headline.products === 0;
+  if (data && data.headline.products === 0) {
+    return (
+      <div className="panel flex min-h-[50vh] flex-col items-center justify-center border-dashed text-center">
+        <h2 className="text-lg font-medium">Nothing indexed for “{query}”</h2>
+        <p className="mt-1 max-w-md text-sm text-muted-foreground">
+          The crawl is still running, so this niche may simply not be covered
+          yet. Try a broader term.
+        </p>
+        <Button asChild variant="secondary" className="mt-6">
+          <Link href="/">Search again</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="pt-10">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
-            Market overview
-          </p>
-          <h1 className="mt-2 text-4xl font-semibold capitalize tracking-tight">
-            {query}
-          </h1>
-        </div>
-        <div className="flex items-center gap-3">
-          {data?.took_ms != null && (
-            <Badge variant="outline" className="border-border/70 font-normal tabular">
-              {data.took_ms} ms
-            </Badge>
-          )}
-          <Button asChild variant="secondary">
+    <div className="mx-auto w-full max-w-[1560px] space-y-4 pb-10">
+      {/* Row 1 — KPIs. Nothing decorative sits above them, so the first thing
+          on screen at any scroll position is a number. */}
+      <HeadlineStats data={data} />
+
+      {/* Row 2 — the price architecture, full width. */}
+      <div className="space-y-2">
+        <PriceHistogram data={data} />
+        <PriceRangeStrip data={data} />
+      </div>
+
+      {/* Row 3 — who is selling, and how much of it. */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        <BrandConcentration data={data} />
+        <AssortmentBreadth data={data} />
+      </div>
+
+      {/* Row 4 — the competitive set itself. */}
+      <section className="space-y-3 pt-2">
+        <div className="flex items-baseline justify-between gap-4">
+          <div>
+            <h2 className="text-[15px] font-semibold tracking-tight text-foreground">
+              Stores in this market
+            </h2>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              {stores
+                ? `${num(stores.length)} stores, sortable. Click a row for the store view.`
+                : "Loading the competitive set…"}
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm">
             <Link href={`/stores?q=${encodeURIComponent(query)}`}>
-              See the {data ? data.headline.stores.toLocaleString() : ""} stores
-              <ArrowRight className="ml-2 h-4 w-4" />
+              Full store view
+              <ArrowRight className="ml-2 h-3.5 w-3.5" />
             </Link>
           </Button>
         </div>
-      </div>
-
-      {nothing ? (
-        <div className="flex min-h-[50vh] flex-col items-center justify-center rounded-xl border border-dashed border-border/70 text-center">
-          <h2 className="text-lg font-medium">Nothing indexed for “{query}”</h2>
-          <p className="mt-1 max-w-md text-sm text-muted-foreground">
-            The crawl is still running, so this niche may simply not be covered
-            yet. Try a broader term.
-          </p>
-          <Button asChild variant="secondary" className="mt-6">
-            <Link href="/">Search again</Link>
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <HeadlineStats data={data} />
-
-          <AnimatedContent distance={24} duration={0.6} threshold={0}>
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.9fr)_minmax(340px,1fr)]">
-              <div className="space-y-2">
-                <PriceHistogram data={data} />
-                <PriceRangeStrip data={data} />
-              </div>
-              <GapCallouts data={data} />
-            </div>
-          </AnimatedContent>
-
-          <div className="grid gap-4 xl:grid-cols-3">
-            <PriceBands data={data} />
-            <BrandConcentration data={data} />
-            <AssortmentBreadth data={data} />
-          </div>
-        </div>
-      )}
+        <StoreTable rows={stores} compact />
+      </section>
     </div>
   );
 }
 
 export default function NichePage() {
   return (
-    <Suspense fallback={<div className="pt-10" />}>
+    <Suspense fallback={<div />}>
       <NicheView />
     </Suspense>
   );

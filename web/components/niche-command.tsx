@@ -16,20 +16,8 @@ import {
 } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { useApi, searchPath, MIN_QUERY, type SearchCounts } from "@/lib/api";
+import { useApi, searchPath, MIN_QUERY, SUGGESTED, type SearchCounts } from "@/lib/api";
 import { num, short } from "@/lib/format";
-
-/** Measured on the live index — every one of these returns a real market. */
-const SUGGESTED = [
-  "sunglasses",
-  "supplements",
-  "candles",
-  "dresses",
-  "sneakers",
-  "coffee",
-  "skincare",
-  "jewelry",
-];
 
 const OPEN_ITEM = "open-market";
 const suggestValue = (name: string) => `suggest-${name}`;
@@ -87,21 +75,24 @@ function Body({ search, autoFocus }: { search: Search; autoFocus?: boolean }) {
         value={query}
         onValueChange={setQuery}
         placeholder="Describe a niche — sunglasses, magnesium supplements, dog beds…"
-        className="h-14 text-base"
+        className="h-12 text-[15px]"
       />
-      <CommandList className="max-h-[420px]">
+      <CommandList className="max-h-[340px] border-t border-border">
         {!typed && (
           <CommandGroup heading="Try a market">
-            {SUGGESTED.map((name) => (
-              <CommandItem
-                key={name}
-                value={suggestValue(name)}
-                onSelect={() => setQuery(name)}
-              >
-                <Sparkles className="mr-2 h-4 w-4 text-primary" />
-                <span className="capitalize">{name}</span>
-              </CommandItem>
-            ))}
+            <div className="flex flex-wrap gap-2 px-1 py-1">
+              {SUGGESTED.map((name) => (
+                <CommandItem
+                  key={name}
+                  value={suggestValue(name)}
+                  onSelect={() => setQuery(name)}
+                  className="w-auto rounded-full border border-border bg-white px-3 py-1.5 text-[13px] data-[selected=true]:border-primary/40"
+                >
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />
+                  <span className="capitalize">{name}</span>
+                </CommandItem>
+              ))}
+            </div>
           </CommandGroup>
         )}
 
@@ -191,7 +182,7 @@ export function NicheCommand({ autoFocus = false }: { autoFocus?: boolean }) {
       shouldFilter={false}
       value={search.selected}
       onValueChange={search.setSelected}
-      className="rounded-xl border border-border/80 bg-card/60 backdrop-blur"
+      className="panel overflow-hidden"
     >
       <Body search={search} autoFocus={autoFocus} />
     </Command>
