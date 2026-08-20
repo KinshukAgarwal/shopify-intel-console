@@ -79,11 +79,15 @@ def connect_build(path):
     conn = sqlite3.connect(path)
     # Build-time only. The file is rebuilt from source if a crash corrupts it,
     # so durability buys nothing and costs an order of magnitude.
+    #
+    # The cache is deliberately modest: this machine also runs the crawl, which
+    # holds ~20 GB, and a 1 GiB cache plus a 31M-row index build got the
+    # indexer OOM-killed mid-dedupe. Sorts spill to disk instead.
     conn.executescript("""
         PRAGMA journal_mode = OFF;
         PRAGMA synchronous = OFF;
         PRAGMA temp_store = FILE;
-        PRAGMA cache_size = -1048576;   -- 1 GiB
+        PRAGMA cache_size = -524288;    -- 512 MiB, see below
     """)
     return conn
 
@@ -94,7 +98,7 @@ def connect_build(path):
 # moment that pass commits, so --resume can tell "finished" from "killed
 # halfway through" — a distinction row counts cannot make, since a partial pass
 # also leaves rows behind.
-STAGES = ("price", "attached")
+STAGES = ("price", "products", "attached")
 
 
 def finished_stage(conn):
@@ -186,7 +190,8 @@ def build_price(conn, limit=None):
         DROP TABLE stage;
     """)
     conn.commit()
-    return conn.execute("SELECT count(*) FROM price").fetchone()[0]
+    total = conn.execute("SELECT count(*) FROM price").fetchone()[0]
+    return total
 
 
 # ------------------------------------------------------------- product pass
@@ -253,20 +258,32 @@ def dedupe(conn):
     histogram. `contentless_delete=1` on the FTS table is what makes the
     matching index rows removable without keeping the text around.
     """
-    conn.execute("CREATE INDEX idx_products_key ON products (store_id, product_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_products_key "
+                 "ON products (store_id, product_id)")
+    # One ordered pass over that index and nothing else.
+    #
+    # The obvious formulation — collect min(id) per key into a temp table, then
+    # LEFT JOIN products against it to find the rows that missed — costs 31M
+    # random probes into a temp B-tree that does not fit in cache. Measured on
+    # this crawl it read half a terabyte in forty-five minutes without
+    # finishing. `row_number()` needs no probes at all: duplicates are adjacent
+    # in (store_id, product_id) order, the index supplies exactly that order
+    # with `id` as its payload, so the window runs over a single covering scan
+    # and everything after the first row of a group is a duplicate.
     conn.executescript("""
-        CREATE TEMP TABLE keep AS
-          SELECT min(id) AS id FROM products GROUP BY store_id, product_id;
-        CREATE INDEX temp.idx_keep ON keep (id);
+        DROP TABLE IF EXISTS temp.dupes;
         CREATE TEMP TABLE dupes AS
-          SELECT p.id FROM products p LEFT JOIN keep k ON k.id = p.id
-          WHERE k.id IS NULL;
+          SELECT id FROM (
+            SELECT id, row_number() OVER (
+                     PARTITION BY store_id, product_id ORDER BY id) AS rn
+            FROM products)
+          WHERE rn > 1;
     """)
     n = conn.execute("SELECT count(*) FROM dupes").fetchone()[0]
     if n:
         conn.execute("DELETE FROM products_fts WHERE rowid IN (SELECT id FROM dupes)")
         conn.execute("DELETE FROM products WHERE id IN (SELECT id FROM dupes)")
-    conn.executescript("DROP TABLE keep; DROP TABLE dupes;")
+    conn.execute("DROP TABLE dupes")
     conn.commit()
     log("deduped %s repeated product rows" % f"{n:,}")
     return n
@@ -281,7 +298,8 @@ def attach_prices(conn):
               AND price.product_id = products.product_id)
     """)
     conn.execute("DROP TABLE price")
-    conn.execute("CREATE INDEX idx_products_store ON products (store_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_products_store "
+                 "ON products (store_id)")
     conn.commit()
 
 
@@ -368,6 +386,9 @@ def _demo():
         set_meta(conn, stage="price")
         assert finished_stage(conn) == "price"
 
+        set_meta(conn, stage="products")
+        assert finished_stage(conn) == "products"
+
         set_meta(conn, stage="attached")
         assert finished_stage(conn) == "attached"
 
@@ -425,18 +446,22 @@ def main():
     else:
         log("resuming: the %s pass already finished in this partial build" % done)
 
-    if done != "attached":
-        n_products = build_products(conn, args.limit)
+    if done in (None, "price"):
+        n_raw = build_products(conn, args.limit)
+        set_meta(conn, stage="products", n_raw=n_raw)
+        done = "products"
+
+    if done == "products":
+        n_raw = int(dict(conn.execute("SELECT key, value FROM meta"))["n_raw"])
         n_duplicates = dedupe(conn)
-        n_products -= n_duplicates
+        n_products = n_raw - n_duplicates
         attach_prices(conn)
-        # Recorded here, not at the end: after this point `price` is gone and
-        # `products` is deduped, so the counts can no longer be recomputed.
+        # Recorded here, not at the end: past this point `price` is gone and
+        # `products` is deduped, so neither count can be recomputed.
         set_meta(conn, stage="attached", n_products=n_products,
                  n_duplicates=n_duplicates)
     else:
-        counts = dict(conn.execute(
-            "SELECT key, value FROM meta WHERE key IN ('n_products','n_duplicates')"))
+        counts = dict(conn.execute("SELECT key, value FROM meta"))
         n_products = int(counts["n_products"])
         n_duplicates = int(counts["n_duplicates"])
 
