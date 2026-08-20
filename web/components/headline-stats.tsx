@@ -8,13 +8,14 @@ import { moneyShort, num } from "@/lib/format";
 import type { Niche } from "@/lib/api";
 
 /**
- * One KPI tile: small-caps label, the number as the loudest thing on the card,
- * a tinted pill and a 40px sparkline to its right.
+ * One KPI tile: a 10px label over a 34px figure, a neutral pill and a micro
+ * chart with no axes. The card is airy — the density belongs to the grid, not
+ * to what is inside a card.
  *
- * The pill is deliberately neutral rather than a green/red delta. A delta needs
- * a previous value and this crawl covers a single day, so every arrow on this
- * screen would be invented. What the pill carries instead is a real second
- * figure derived from the same query.
+ * The pill is deliberately not a green/red delta. A delta needs a previous
+ * value, and this crawl covers a single day; every arrow on this screen would
+ * be invented, and an invented one on a sales call is worse than none. What it
+ * carries instead is a real second figure from the same query.
  */
 export function StatTile({
   label,
@@ -22,7 +23,6 @@ export function StatTile({
   prefix = "",
   literal,
   pill,
-  tone,
   spark,
   note,
   delay = 0,
@@ -32,50 +32,86 @@ export function StatTile({
   prefix?: string;
   literal?: string;
   pill?: string;
-  tone?: "up" | "down" | "gap";
   spark?: number[];
   note?: string;
   delay?: number;
 }) {
   return (
     <Card className="panel">
-      <CardContent className="p-5">
+      <CardContent className="p-6">
         <span className="stat-label">{label}</span>
-        <div className="mt-3 flex items-end justify-between gap-3">
+        <div className="mt-4 flex items-end justify-between gap-3">
           <div className="min-w-0">
             <div className="stat-value truncate">
               {literal ?? (
                 <>
                   {prefix}
-                  <CountUp
-                    to={value ?? 0}
-                    duration={1}
-                    delay={delay}
-                    separator=","
-                  />
+                  <CountUp to={value ?? 0} duration={1} delay={delay} separator="," />
                 </>
               )}
             </div>
-            {pill && (
-              <span className="pill mt-2.5" data-tone={tone}>
-                {pill}
-              </span>
-            )}
+            {pill && <span className="pill mt-4">{pill}</span>}
           </div>
           {spark && <Sparkline values={spark} />}
         </div>
         {note && (
-          <p className="mt-3 truncate text-[13px] text-[hsl(var(--body))]">
-            {note}
-          </p>
+          <p className="mt-4 truncate text-[13px] text-muted-foreground">{note}</p>
         )}
       </CardContent>
     </Card>
   );
 }
 
+/**
+ * The one tinted card on the screen, and the only orange on it. It carries the
+ * product's whole argument in one figure: the price band the market has left
+ * open. Everything else on the niche overview is greyscale so that this reads
+ * as the answer rather than as another statistic.
+ */
+function WhiteSpaceTile({ data }: { data: Niche }) {
+  const widest = data.gaps[0];
+  const gaps = data.gaps.length;
+
+  if (!widest) {
+    const range = data.range;
+    return (
+      <StatTile
+        label="White space"
+        literal="None"
+        pill={
+          range && range.lo > 0
+            ? `${(range.hi / range.lo).toFixed(1)}× low to high`
+            : undefined
+        }
+        note="Priced continuously across the whole range"
+      />
+    );
+  }
+
+  return (
+    <div className="panel-signal p-6">
+      <span className="stat-label text-signal">White space</span>
+      <div className="mt-4">
+        <div className="hero-value">{moneyShort(widest.lo)}</div>
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className="text-[15px] text-muted-foreground">to</span>
+          <span className="text-[28px] font-semibold tabular tracking-[-0.01em] text-foreground">
+            {moneyShort(widest.hi)}
+          </span>
+        </div>
+      </div>
+      <p className="mt-4 text-[13px] text-[hsl(var(--body))]">
+        {widest.kind === "empty"
+          ? "Nobody sells in this band"
+          : `Only ${num(widest.products)} products — ${widest.share_pct}% of the market`}
+        {gaps > 1 && ` · ${gaps - 1} more gap${gaps > 2 ? "s" : ""}`}
+      </p>
+    </div>
+  );
+}
+
 export function StatTileSkeleton() {
-  return <Skeleton className="h-[158px] rounded-xl" />;
+  return <Skeleton className="h-[192px] rounded-[14px]" />;
 }
 
 export function HeadlineStats({ data }: { data: Niche | null }) {
@@ -91,14 +127,11 @@ export function HeadlineStats({ data }: { data: Niche | null }) {
 
   const { stores, products, priced, median_price } = data.headline;
   const range = data.range;
-  const spread = range ? Math.round(range.hi - range.lo) : 0;
   const shape = data.histogram.map((bar) => bar.count);
   const breadth = data.breadth.map((row) => row.stores);
-  const gaps = data.gaps.length;
-  const multiple = range && range.lo > 0 ? range.hi / range.lo : 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatTile
         label="Stores in market"
         value={stores}
@@ -113,10 +146,10 @@ export function HeadlineStats({ data }: { data: Niche | null }) {
         spark={shape}
         pill={
           products > 0
-            ? `${Math.round((priced / products) * 100)}% priced`
+            ? `${Math.round((priced / products) * 100)}% carry a price`
             : undefined
         }
-        note={`${num(priced)} carry a price`}
+        note={`${num(priced)} priced of ${num(products)}`}
       />
       <StatTile
         label="Median price"
@@ -127,22 +160,7 @@ export function HeadlineStats({ data }: { data: Niche | null }) {
         pill={range ? `${moneyShort(range.lo)}–${moneyShort(range.hi)}` : undefined}
         note="Midpoint of every priced product"
       />
-      <StatTile
-        label="Price spread"
-        value={spread}
-        prefix="$"
-        delay={0.18}
-        spark={shape}
-        pill={
-          gaps > 0
-            ? `${gaps} white-space gap${gaps > 1 ? "s" : ""}`
-            : multiple
-              ? `${multiple.toFixed(1)}× low to high`
-              : undefined
-        }
-        tone={gaps > 0 ? "gap" : undefined}
-        note="1st to 99th percentile of the catalogue"
-      />
+      <WhiteSpaceTile data={data} />
     </div>
   );
 }

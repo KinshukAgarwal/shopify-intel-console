@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight, PlugZap, Search, SearchX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
 import { HeadlineStats } from "@/components/headline-stats";
 import { PriceHistogram } from "@/components/price-histogram";
 import {
@@ -24,44 +25,38 @@ function NicheView() {
 
   if (!query) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <Search className="mb-4 h-6 w-6 text-muted-foreground" />
-        <h2 className="text-lg font-medium">Pick a market first</h2>
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          Search a niche to see its price architecture.
-        </p>
-        <Button asChild className="mt-6">
-          <Link href="/">Open search</Link>
-        </Button>
-      </div>
+      <EmptyState
+        icon={Search}
+        title="Pick a market first"
+        body="Every panel on this screen is scoped to one niche. Search for one and the price architecture follows."
+        action="Open search"
+        href="/"
+      />
     );
   }
 
   if (error) {
     return (
-      <div className="panel mt-8 border-destructive/30 bg-destructive/5 p-8 text-center">
-        <h2 className="text-lg font-medium">The index is not answering</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Start the API with <code className="text-foreground">make api</code>, or
-          build the index with <code className="text-foreground">make index</code>.
-        </p>
-      </div>
+      <EmptyState
+        tone="error"
+        icon={PlugZap}
+        title="The index is not answering"
+        body={`${error}. Start the API with \u201cmake api\u201d, or build the index with \u201cmake index\u201d.`}
+        action="Back to search"
+        href="/"
+      />
     );
   }
 
   if (data && data.headline.products === 0) {
     return (
-      <div className="panel flex min-h-[50vh] flex-col items-center justify-center border-dashed text-center">
-        <h2 className="text-lg font-medium">Nothing indexed for “{query}”</h2>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          The crawl is still running, so this niche may simply not be covered
-          yet. Try a broader term.
-        </p>
-        <Button asChild variant="secondary" className="mt-6">
-          <Link href="/">Search again</Link>
-        </Button>
-      </div>
+      <EmptyState
+        icon={SearchX}
+        title={`Nothing indexed for \u201c${query}\u201d`}
+        body="The crawl is still running, so this niche may simply not be covered yet. A broader word usually finds it."
+        action="Search again"
+        href="/"
+      />
     );
   }
 

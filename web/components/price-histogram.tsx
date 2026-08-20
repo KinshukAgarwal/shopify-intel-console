@@ -19,7 +19,7 @@ import { CHART } from "@/components/chart-kit";
 import { moneyShort, num } from "@/lib/format";
 import type { Gap, Niche } from "@/lib/api";
 
-const GAP = CHART.gap;     // orange — reserved for white space and nothing else
+const GAP = CHART.signal;  // the one accent, spent only on white space
 const BAR = CHART.series;
 
 /** The one-line verdict a viewer should be able to read off the chart. */
@@ -34,7 +34,7 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
 
   if (data.histogram.length === 0) {
     return (
-      <Card className="panel flex h-[400px] items-center justify-center border-dashed">
+      <Card className="panel flex h-[420px] items-center justify-center border-dashed">
         <CardContent className="p-10 text-center">
           <p className="text-sm font-medium">No priced products in this market</p>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
@@ -78,29 +78,19 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
     }
   });
 
-  const widest = data.gaps[0];
-
   return (
     <Card className="panel">
-      <CardHeader className="flex-row items-start justify-between gap-6 space-y-0 px-6 pb-2 pt-5">
+      <CardHeader className="flex-row items-start justify-between gap-6 space-y-0 px-6 pb-0 pt-6">
         <div>
           <h2 className="section-title">Price distribution</h2>
-          <p className="body-text mt-1">
-            {num(data.headline.priced)} priced products, bucketed. Amber bands
-            are white space — the market is not selling there.
+          <p className="body-text mt-1.5">
+            {num(data.headline.priced)} priced products, bucketed. The shaded
+            band is white space — the market is not selling there.
           </p>
         </div>
-        {widest && (
-          <div className="shrink-0 rounded-xl border border-dashed border-[hsl(var(--chart-2))]/40 bg-[hsl(var(--chart-2))]/[0.08] px-4 py-2.5 text-right">
-            <p className="stat-label text-[hsl(var(--chart-2))]">Widest gap</p>
-            <p className="mt-1.5 text-[20px] font-semibold leading-none tabular tracking-[-0.02em] text-foreground">
-              {moneyShort(widest.lo)} – {moneyShort(widest.hi)}
-            </p>
-          </div>
-        )}
       </CardHeader>
 
-      <CardContent className="px-3 pb-3 pt-4">
+      <CardContent className="px-4 pb-4 pt-5">
         <ResponsiveContainer width="100%" height={340}>
           <BarChart data={rows} margin={{ top: 30, right: 20, bottom: 4, left: 4 }}>
             <CartesianGrid vertical={false} stroke={CHART.grid} />
@@ -110,10 +100,10 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
                 x1={band.from}
                 x2={band.to}
                 fill={GAP}
-                fillOpacity={0.08}
+                fillOpacity={0.07}
                 stroke={GAP}
-                strokeOpacity={0.45}
-                strokeDasharray="5 4"
+                strokeOpacity={0.4}
+                strokeDasharray="5 5"
               >
                 {band.gap && (
                   <Label
@@ -153,9 +143,9 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
               }}
               formatter={(value) => [num(Number(value ?? 0)), "products"]}
             />
-            <Bar dataKey="count" radius={[3, 3, 0, 0]} maxBarSize={22}>
+            <Bar dataKey="count" radius={[2, 2, 0, 0]} maxBarSize={18}>
               {rows.map((row, index) => (
-                <Cell key={index} fill={row.gap ? GAP : BAR} fillOpacity={row.gap ? 0.55 : 1} />
+                <Cell key={index} fill={row.gap ? GAP : BAR} fillOpacity={row.gap ? 0.6 : 0.88} />
               ))}
             </Bar>
           </BarChart>
@@ -163,17 +153,13 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
       </CardContent>
 
       {data.gaps.length > 0 && (
-        <div className="flex flex-wrap gap-2 border-t border-[hsl(var(--divider))] px-6 py-3.5">
-          {data.gaps.map((gap, index) => (
-            <span key={`${gap.lo}-${gap.hi}`} className="pill" data-tone="gap">
-              <span
-                className="mr-0.5 h-1.5 w-1.5 rounded-full bg-current"
-                style={{ opacity: index === 0 ? 1 : 0.5 }}
-              />
+        <div className="flex flex-wrap gap-2 px-6 pb-6 pt-1">
+          {data.gaps.map((gap) => (
+            <span key={`${gap.lo}-${gap.hi}`} className="pill" data-tone="signal">
               <span className="font-semibold">
                 {moneyShort(gap.lo)} – {moneyShort(gap.hi)}
               </span>
-              <span className="font-normal opacity-80">
+              <span className="font-normal opacity-75">
                 {gap.kind === "empty"
                   ? "nobody sells here"
                   : `${gap.share_pct}% of the market`}

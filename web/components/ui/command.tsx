@@ -40,7 +40,7 @@ const CommandDialog = ({
     <Dialog {...props}>
       <DialogContent
         className={cn(
-          "top-[20%] w-[600px] max-w-[calc(100vw-2rem)] translate-y-0 gap-0 overflow-hidden rounded-[14px] border-border p-0 shadow-[0_24px_64px_-12px_rgba(16,24,40,0.24)] sm:max-w-[600px]",
+          "top-[20%] w-[600px] max-w-[calc(100vw-2rem)] translate-y-0 gap-0 overflow-hidden rounded-[14px] border-border p-0 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.18)] sm:max-w-[600px] [&>button:last-child]:hidden",
           className
         )}
       >

@@ -45,7 +45,7 @@ export function AppSidebar() {
     <Sidebar collapsible="none" className="border-r border-sidebar-border">
       <SidebarHeader className="h-16 justify-center border-b border-sidebar-border px-5">
         <Link href="/" className="flex items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+          <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-foreground text-background">
             <Command className="h-4 w-4" />
           </span>
           <span className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">
@@ -102,13 +102,13 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-5">
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <p className="stat-label">Index</p>
-          <p className="text-[14px] font-semibold tabular text-foreground">
-            {short(meta?.n_products)} products
+          <p className="text-[20px] font-semibold tabular leading-none tracking-[-0.01em] text-foreground">
+            {short(meta?.n_products)}
           </p>
-          <p className="text-[13px] tabular text-[hsl(var(--body))]">
-            {short(meta?.n_stores)} stores
+          <p className="pt-1 text-[13px] tabular text-muted-foreground">
+            products · {short(meta?.n_stores)} stores
           </p>
           <p className="text-[12px] tabular text-muted-foreground">
             {since(meta?.indexed_at)}

@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Suspense fallback={<div className="h-16 border-b border-border" />}>
               <TopBar />
             </Suspense>
-            <main className="min-w-0 flex-1 px-6 py-6">{children}</main>
+            <main className="min-w-0 flex-1 px-7 py-6">{children}</main>
           </SidebarInset>
         </SidebarProvider>
       </body>

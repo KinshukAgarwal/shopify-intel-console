@@ -9,7 +9,7 @@ import { Sparkline } from "@/components/chart-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SUGGESTED, useApi, nichePath, type Meta, type Niche } from "@/lib/api";
-import { moneyShort, num, short, since } from "@/lib/format";
+import { day, moneyShort, num, short, since } from "@/lib/format";
 
 /**
  * One market tile, showing what the console knows about that niche without
@@ -23,44 +23,38 @@ function MarketCard({ name }: { name: string }) {
 
   return (
     <Link href={`/niche?q=${encodeURIComponent(name)}`} className="group block">
-      <Card className="panel h-full transition-shadow group-hover:shadow-[0_4px_16px_rgba(16,24,40,0.07)]">
-        <CardContent className="p-5">
+      <Card className="panel h-full transition-shadow group-hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)]">
+        <CardContent className="p-6">
           <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-[14px] font-semibold capitalize text-foreground">
-              {name}
-            </span>
-            <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+            <span className="stat-label truncate">{name}</span>
+            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
           </div>
 
           {data ? (
             <>
-              <div className="mt-3 flex items-end justify-between gap-3">
+              <div className="mt-4 flex items-end justify-between gap-3">
                 <div>
-                  <div className="text-[26px] font-semibold leading-none tabular tracking-[-0.02em] text-foreground">
+                  <div className="stat-value">
                     {short(data.headline.products)}
                   </div>
-                  <p className="mt-2 text-[13px] tabular text-[hsl(var(--body))]">
-                    {num(data.headline.stores)} stores
+                  <p className="mt-2.5 text-[13px] tabular text-muted-foreground">
+                    {num(data.headline.stores)} stores · median{" "}
+                    {moneyShort(data.headline.median_price)}
                   </p>
                 </div>
                 <Sparkline values={data.histogram.map((bar) => bar.count)} />
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="pill">
-                  median {moneyShort(data.headline.median_price)}
+              {gaps > 0 && (
+                <span className="pill mt-4" data-tone="signal">
+                  {gaps} white-space gap{gaps > 1 ? "s" : ""}
                 </span>
-                {gaps > 0 && (
-                  <span className="pill" data-tone="gap">
-                    {gaps} gap{gaps > 1 ? "s" : ""}
-                  </span>
-                )}
-              </div>
+              )}
             </>
           ) : (
-            <div className="mt-3 space-y-3">
-              <Skeleton className="h-[26px] w-24" />
-              <Skeleton className="h-[13px] w-16" />
-              <Skeleton className="h-[22px] w-32" />
+            <div className="mt-4 space-y-3">
+              <Skeleton className="h-[34px] w-28" />
+              <Skeleton className="h-[13px] w-36" />
+              <Skeleton className="h-[26px] w-32 rounded-full" />
             </div>
           )}
         </CardContent>
@@ -76,7 +70,7 @@ export default function SearchPage() {
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1560px] space-y-5 pb-8">
+    <div className="mx-auto w-full max-w-[1560px] space-y-6 pb-8">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {meta ? (
           <>
@@ -99,13 +93,13 @@ export default function SearchPage() {
             />
             <StatTile
               label="Index built"
-              literal={since(meta.indexed_at)}
+              literal={day(meta.indexed_at)}
               pill={minutes ? `${minutes} min build` : undefined}
-              note="Rebuilt from the crawl's cold shards"
+              note={`${since(meta.indexed_at)} · from the crawl's cold shards`}
             />
             <StatTile
               label="Query plan"
-              literal="one MATCH"
+              literal="1 MATCH"
               pill="FTS5 · resumable"
               note="Every panel reads one materialised match, not eight"
             />

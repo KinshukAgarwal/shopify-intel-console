@@ -32,14 +32,14 @@ function Panel({
 }) {
   return (
     <Card className="panel flex h-full flex-col">
-      <CardHeader className="flex-row items-start justify-between gap-4 space-y-0 px-6 pb-2 pt-5">
+      <CardHeader className="flex-row items-start justify-between gap-4 space-y-0 px-6 pb-0 pt-6">
         <div>
           <h2 className="section-title">{title}</h2>
-          <p className="body-text mt-1">{description}</p>
+          <p className="body-text mt-1.5">{description}</p>
         </div>
         {aside}
       </CardHeader>
-      <CardContent className="flex-1 px-3 pb-4 pt-3">{children}</CardContent>
+      <CardContent className="flex-1 px-4 pb-5 pt-4">{children}</CardContent>
     </Card>
   );
 }
@@ -87,7 +87,7 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
             contentStyle={CHART.tooltip}
             formatter={(value) => [num(Number(value ?? 0)), key]}
           />
-          <Bar dataKey={key} radius={[0, 4, 4, 0]} barSize={14}>
+          <Bar dataKey={key} radius={[0, 3, 3, 0]} barSize={12}>
             <LabelList
               dataKey={key}
               position="right"
@@ -101,7 +101,7 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
               }}
             />
             {rows.map((_row, index) => (
-              <Cell key={index} fill={colour} fillOpacity={1 - index * 0.075} />
+              <Cell key={index} fill={colour} fillOpacity={0.9 - index * 0.085} />
             ))}
           </Bar>
         </BarChart>
@@ -118,7 +118,7 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
       }
     >
       <Tabs defaultValue="products">
-        <TabsList className="mx-3 mb-2 h-8">
+        <TabsList className="mx-2 mb-2 h-8">
           <TabsTrigger value="products" className="h-6 text-[12px]">
             By products
           </TabsTrigger>
@@ -175,8 +175,9 @@ export function AssortmentBreadth({ data }: { data: Niche | null }) {
             <Bar
               dataKey="stores"
               fill={CHART.series}
-              radius={[4, 4, 0, 0]}
-              maxBarSize={48}
+              fillOpacity={0.88}
+              radius={[3, 3, 0, 0]}
+              maxBarSize={44}
             />
           </BarChart>
         </ResponsiveContainer>

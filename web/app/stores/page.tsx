@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { Store } from "lucide-react";
+import { PlugZap, Store } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
 import { StoreTable } from "@/components/store-table";
 import { StatTile, StatTileSkeleton } from "@/components/headline-stats";
 import { useApi, storesPath, type StoreRow } from "@/lib/api";
@@ -27,16 +27,13 @@ function StoresView() {
 
   if (!query) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <Store className="mb-4 h-6 w-6 text-muted-foreground" />
-        <h2 className="text-lg font-medium">No market selected</h2>
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          Search a niche to see the stores competing in it.
-        </p>
-        <Button asChild className="mt-6">
-          <Link href="/">Open search</Link>
-        </Button>
-      </div>
+      <EmptyState
+        icon={Store}
+        title="No market selected"
+        body="This table lists the stores competing inside one niche. Search for a niche and they appear here."
+        action="Open search"
+        href="/"
+      />
     );
   }
 
@@ -104,9 +101,14 @@ function StoresView() {
       </div>
 
       {error ? (
-        <div className="panel border-destructive/30 bg-destructive/5 p-8 text-center">
-          <p className="text-sm text-muted-foreground">{error}</p>
-        </div>
+        <EmptyState
+          tone="error"
+          icon={PlugZap}
+          title="The index is not answering"
+          body={error}
+          action="Back to search"
+          href="/"
+        />
       ) : (
         <StoreTable rows={data} />
       )}

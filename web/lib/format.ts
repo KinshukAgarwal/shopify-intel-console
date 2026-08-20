@@ -36,3 +36,12 @@ export const since = (epochSeconds: number | undefined) => {
     minute: "2-digit",
   });
 };
+
+/** Just the day. The KPI tile shows this; the full timestamp goes in its note. */
+export const day = (epochSeconds: number | undefined) =>
+  epochSeconds
+    ? new Date(epochSeconds * 1000).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+      })
+    : "—";
