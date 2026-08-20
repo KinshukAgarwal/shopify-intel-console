@@ -29,7 +29,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { money, moneyShort, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -54,6 +53,12 @@ const features = {
 
 const helper = createColumnHelper<typeof features, StoreRow>();
 
+// Which columns hold a number. TanStack v9 carries column `meta` through to the
+// header and the cell, but reading one literal set here is shorter than
+// threading a typed meta shape through both render paths.
+const RIGHT = new Set(["matched", "catalogue", "avg", "median"]);
+const right = (id: string) => RIGHT.has(id);
+
 // `any` for TValue is TanStack's own documented escape hatch: a heterogeneous
 // column array cannot be given one concrete cell type, and without it every
 // accessor widens the array to an unusable union.
@@ -63,7 +68,7 @@ const columns: ColumnDef<typeof features, StoreRow, any>[] = [
     header: "Store",
     sortFn: "alphanumeric",
     cell: (context) => (
-      <span className="flex items-center gap-2 font-medium">
+      <span className="flex items-center gap-2 font-semibold text-foreground">
         {context.getValue()}
         <ExternalLink className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-60" />
       </span>
@@ -73,7 +78,7 @@ const columns: ColumnDef<typeof features, StoreRow, any>[] = [
     header: "In niche",
     sortFn: "basic",
     cell: (context) => (
-      <span className="tabular">{num(context.getValue())}</span>
+      <span className="tabular font-medium">{num(context.getValue())}</span>
     ),
   }),
   helper.accessor("catalogue", {
@@ -95,9 +100,9 @@ const columns: ColumnDef<typeof features, StoreRow, any>[] = [
         return <span className="text-muted-foreground">—</span>;
       }
       return (
-        <Badge variant="secondary" className="tabular font-normal">
+        <span className="pill">
           {moneyShort(row.min_price)} – {moneyShort(row.max_price)}
-        </Badge>
+        </span>
       );
     },
   }),
@@ -106,7 +111,9 @@ const columns: ColumnDef<typeof features, StoreRow, any>[] = [
     header: "Avg price in niche",
     sortFn: "basic",
     cell: (context) => (
-      <span className="tabular">{money(context.row.original.avg_price)}</span>
+      <span className="tabular font-medium">
+        {money(context.row.original.avg_price)}
+      </span>
     ),
   }),
   helper.accessor((row) => row.median_price ?? 0, {
@@ -150,11 +157,11 @@ export function StoreTable({
   if (!rows) {
     return (
       <div className="panel overflow-hidden">
-        <div className="border-b border-border p-3">
+        <div className="border-b border-[hsl(var(--grid))] px-5 py-3.5">
           <Skeleton className="h-9 w-72" />
         </div>
         {Array.from({ length: compact ? 8 : 12 }).map((_, index) => (
-          <Skeleton key={index} className="m-3 h-8" />
+          <Skeleton key={index} className="mx-5 my-[18px] h-4" />
         ))}
       </div>
     );
@@ -165,14 +172,14 @@ export function StoreTable({
 
   return (
     <div className="panel overflow-hidden">
-      <div className="flex items-center justify-between gap-4 border-b border-border px-3 py-3">
+      <div className="flex items-center justify-between gap-4 border-b border-[hsl(var(--grid))] px-5 py-3.5">
         <Input
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           placeholder="Filter by domain…"
-          className="h-9 max-w-xs bg-white"
+          className="h-9 max-w-xs bg-white text-[14px]"
         />
-        <p className="text-[12px] tabular text-muted-foreground">
+        <p className="text-[13px] tabular text-muted-foreground">
           {compact && matched.length > visible.length
             ? `Top ${num(visible.length)} of ${num(matched.length)} stores`
             : `${num(visible.length)} of ${num(rows.length)} stores`}
@@ -183,7 +190,7 @@ export function StoreTable({
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id} className="border-border bg-secondary/40 hover:bg-secondary/40">
+              <TableRow key={group.id} className="border-[hsl(var(--grid))] hover:bg-transparent">
                 {group.headers.map((header) => {
                   const sorted = header.column.getIsSorted();
                   const Icon =
@@ -193,11 +200,18 @@ export function StoreTable({
                         ? ArrowDown
                         : ChevronsUpDown;
                   return (
-                    <TableHead key={header.id} className="h-10 whitespace-nowrap px-4">
+                    <TableHead
+                      key={header.id}
+                      className={cn(
+                        "h-11 whitespace-nowrap px-5",
+                        right(header.column.id) && "text-right"
+                      )}
+                    >
                       <button
                         onClick={header.column.getToggleSortingHandler()}
                         className={cn(
-                          "flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors hover:text-foreground",
+                          "flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground transition-colors hover:text-foreground",
+                          right(header.column.id) && "ml-auto flex-row-reverse",
                           sorted && "text-foreground"
                         )}
                       >
@@ -233,10 +247,16 @@ export function StoreTable({
               <TableRow
                 key={row.id}
                 onClick={() => router.push(`/stores/${row.original.id}`)}
-                className="group cursor-pointer border-border hover:bg-secondary/50"
+                className="group cursor-pointer border-[hsl(var(--grid))] hover:bg-[hsl(var(--hover))]"
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="h-12 whitespace-nowrap px-4 py-0 text-[13px]">
+                  <TableCell
+                    key={cell.id}
+                    className={cn(
+                      "h-[52px] whitespace-nowrap px-5 py-0 text-[14px]",
+                      right(cell.column.id) && "text-right"
+                    )}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

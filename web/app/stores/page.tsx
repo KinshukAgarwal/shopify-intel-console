@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { CircleDollarSign, Package, Store, Users } from "lucide-react";
+import { Store } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { StoreTable } from "@/components/store-table";
 import { StatTile, StatTileSkeleton } from "@/components/headline-stats";
 import { useApi, storesPath, type StoreRow } from "@/lib/api";
+import { num } from "@/lib/format";
 
 /** Median of a numeric column, ignoring the stores that have no price at all. */
 function median(values: number[]) {
@@ -44,9 +45,17 @@ function StoresView() {
     (best, row) => (row.matched > (best?.matched ?? 0) ? row : best),
     undefined as StoreRow | undefined
   );
-  const medianAvg = median(
-    (data ?? []).map((row) => row.avg_price).filter((v): v is number => v != null)
-  );
+  const averages = (data ?? [])
+    .map((row) => row.avg_price)
+    .filter((value): value is number => value != null);
+  const medianAvg = median(averages);
+  const withPrices = averages.length;
+  // Store depth, biggest first — the shape of the competitive set, and the one
+  // real series these tiles can draw.
+  const depths = [...(data ?? [])]
+    .map((row) => row.matched)
+    .sort((a, b) => b - a)
+    .slice(0, 40);
 
   return (
     <div className="mx-auto w-full max-w-[1560px] space-y-4 pb-10">
@@ -56,30 +65,37 @@ function StoresView() {
             <StatTile
               label="Stores competing"
               value={data.length}
-              icon={Store}
-              note="Ranked by products in this niche"
+              spark={depths}
+              pill={`${num(withPrices)} priced`}
+              note="Ranked by products carried in this niche"
             />
             <StatTile
               label="Products in niche"
               value={matched}
-              icon={Package}
               delay={0.06}
+              spark={depths}
+              pill={
+                data.length
+                  ? `${num(Math.round(matched / data.length))} per store`
+                  : undefined
+              }
               note="Summed across every store below"
             />
             <StatTile
               label="Median store price"
               value={Math.round(medianAvg)}
               prefix="$"
-              icon={CircleDollarSign}
               delay={0.12}
-              note="Median of each store's in-niche average"
+              spark={averages}
+              pill="median of store averages"
+              note="Half the stores price below this line"
             />
             <StatTile
               label="Deepest catalogue"
-              literal={deepest ? String(deepest.matched) : "—"}
-              value={0}
-              icon={Users}
-              note={deepest ? deepest.domain : "No stores matched"}
+              literal={deepest ? num(deepest.matched) : "—"}
+              spark={depths}
+              pill={deepest ? deepest.domain : undefined}
+              note="The store with the most products in this market"
             />
           </>
         ) : (
@@ -95,7 +111,7 @@ function StoresView() {
         <StoreTable rows={data} />
       )}
 
-      <p className="text-[12px] text-muted-foreground">
+      <p className="text-[13px] text-muted-foreground">
         Prices are the lowest variant price seen per product. Stores publish in
         their own currency and the crawl does not carry it yet, so figures are
         shown with a bare $.

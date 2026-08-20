@@ -15,19 +15,9 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CHART } from "@/components/chart-kit";
 import { moneyShort, num } from "@/lib/format";
 import type { Niche } from "@/lib/api";
-
-const GRID = "hsl(var(--border))";
-const AXIS = "hsl(var(--muted-foreground))";
-
-const TOOLTIP = {
-  background: "#fff",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: 8,
-  fontSize: 12,
-  boxShadow: "0 4px 12px rgba(16,24,40,0.08)",
-};
 
 function Panel({
   title,
@@ -42,16 +32,14 @@ function Panel({
 }) {
   return (
     <Card className="panel flex h-full flex-col">
-      <CardHeader className="flex-row items-start justify-between gap-4 space-y-0 border-b border-border px-5 py-4">
+      <CardHeader className="flex-row items-start justify-between gap-4 space-y-0 px-6 pb-2 pt-5">
         <div>
-          <h2 className="text-[15px] font-semibold tracking-tight text-foreground">
-            {title}
-          </h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>
+          <h2 className="section-title">{title}</h2>
+          <p className="body-text mt-1">{description}</p>
         </div>
         {aside}
       </CardHeader>
-      <CardContent className="flex-1 px-2 py-4">{children}</CardContent>
+      <CardContent className="flex-1 px-3 pb-4 pt-3">{children}</CardContent>
     </Card>
   );
 }
@@ -82,7 +70,6 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
           layout="vertical"
           margin={{ top: 4, right: 44, bottom: 0, left: 8 }}
         >
-          <CartesianGrid horizontal={false} stroke={GRID} />
           <XAxis type="number" hide domain={[0, top * 1.12]} />
           <YAxis
             type="category"
@@ -90,14 +77,14 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
             width={130}
             tickLine={false}
             axisLine={false}
-            tick={{ fill: AXIS, fontSize: 12 }}
+            tick={{ ...CHART.axis, fontSize: 12 }}
             tickFormatter={(value: string) =>
               value.length > 18 ? `${value.slice(0, 17)}…` : value
             }
           />
           <Tooltip
-            cursor={{ fill: "hsl(var(--muted))", fillOpacity: 0.6 }}
-            contentStyle={TOOLTIP}
+            cursor={CHART.cursor}
+            contentStyle={CHART.tooltip}
             formatter={(value) => [num(Number(value ?? 0)), key]}
           />
           <Bar dataKey={key} radius={[0, 4, 4, 0]} barSize={14}>
@@ -127,9 +114,7 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
       title="Top brands"
       description="Deep catalogues and widely stocked brands are different lists."
       aside={
-        <span className="shrink-0 rounded-full border border-border bg-secondary/60 px-2.5 py-1 text-[12px] tabular text-muted-foreground">
-          {num(distinct)} vendors
-        </span>
+        <span className="pill shrink-0">{num(distinct)} vendors</span>
       }
     >
       <Tabs defaultValue="products">
@@ -142,10 +127,10 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="products">
-          {chart(by_products, "products", "hsl(var(--chart-1))")}
+          {chart(by_products, "products", CHART.series)}
         </TabsContent>
         <TabsContent value="stores">
-          {chart(by_stores, "stores", "hsl(var(--chart-3))")}
+          {chart(by_stores, "stores", CHART.series)}
         </TabsContent>
       </Tabs>
     </Panel>
@@ -161,9 +146,7 @@ export function AssortmentBreadth({ data }: { data: Niche | null }) {
       title="Assortment breadth"
       description="How many products each store carries inside this niche."
       aside={
-        <span className="shrink-0 rounded-full border border-border bg-secondary/60 px-2.5 py-1 text-[12px] tabular text-muted-foreground">
-          {num(data.headline.stores)} stores
-        </span>
+        <span className="pill shrink-0">{num(data.headline.stores)} stores</span>
       }
     >
       {!any ? (
@@ -171,27 +154,27 @@ export function AssortmentBreadth({ data }: { data: Niche | null }) {
       ) : (
         <ResponsiveContainer width="100%" height={272}>
           <BarChart data={rows} margin={{ top: 12, right: 12, bottom: 4, left: 4 }}>
-            <CartesianGrid vertical={false} stroke={GRID} />
+            <CartesianGrid vertical={false} stroke={CHART.grid} />
             <XAxis
               dataKey="label"
               tickLine={false}
-              axisLine={{ stroke: GRID }}
-              tick={{ fill: AXIS, fontSize: 11 }}
+              axisLine={false}
+              tick={CHART.axis}
             />
             <YAxis
               tickLine={false}
               axisLine={false}
               width={48}
-              tick={{ fill: AXIS, fontSize: 11 }}
+              tick={CHART.axis}
             />
             <Tooltip
-              cursor={{ fill: "hsl(var(--muted))", fillOpacity: 0.6 }}
-              contentStyle={TOOLTIP}
+              cursor={CHART.cursor}
+              contentStyle={CHART.tooltip}
               formatter={(value) => [num(Number(value ?? 0)), "stores"]}
             />
             <Bar
               dataKey="stores"
-              fill="hsl(var(--chart-1))"
+              fill={CHART.series}
               radius={[4, 4, 0, 0]}
               maxBarSize={48}
             />

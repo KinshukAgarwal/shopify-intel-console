@@ -15,19 +15,18 @@ import {
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CHART } from "@/components/chart-kit";
 import { moneyShort, num } from "@/lib/format";
 import type { Gap, Niche } from "@/lib/api";
 
-const GAP = "hsl(var(--chart-2))";   // orange — reserved for white space alone
-const BAR = "hsl(var(--chart-1))";
-const GRID = "hsl(var(--border))";
-const AXIS = "hsl(var(--muted-foreground))";
+const GAP = CHART.gap;     // orange — reserved for white space and nothing else
+const BAR = CHART.series;
 
 /** The one-line verdict a viewer should be able to read off the chart. */
 function gapPhrase(gap: Gap) {
   return gap.kind === "empty"
-    ? `no products ${moneyShort(gap.lo)}–${moneyShort(gap.hi)}`
-    : `only ${num(gap.products)} products ${moneyShort(gap.lo)}–${moneyShort(gap.hi)}`;
+    ? `No products ${moneyShort(gap.lo)}–${moneyShort(gap.hi)}`
+    : `Only ${num(gap.products)} products ${moneyShort(gap.lo)}–${moneyShort(gap.hi)}`;
 }
 
 export function PriceHistogram({ data }: { data: Niche | null }) {
@@ -83,48 +82,46 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
 
   return (
     <Card className="panel">
-      <CardHeader className="flex-row items-start justify-between gap-6 space-y-0 border-b border-border px-5 py-4">
+      <CardHeader className="flex-row items-start justify-between gap-6 space-y-0 px-6 pb-2 pt-5">
         <div>
-          <h2 className="text-[15px] font-semibold tracking-tight text-foreground">
-            Price distribution
-          </h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            {num(data.headline.priced)} priced products, bucketed. Shaded bands
+          <h2 className="section-title">Price distribution</h2>
+          <p className="body-text mt-1">
+            {num(data.headline.priced)} priced products, bucketed. Amber bands
             are white space — the market is not selling there.
           </p>
         </div>
         {widest && (
-          <div className="shrink-0 rounded-lg border border-[hsl(var(--chart-2))]/30 bg-[hsl(var(--chart-2))]/[0.07] px-4 py-2.5 text-right">
+          <div className="shrink-0 rounded-xl border border-dashed border-[hsl(var(--chart-2))]/40 bg-[hsl(var(--chart-2))]/[0.08] px-4 py-2.5 text-right">
             <p className="stat-label text-[hsl(var(--chart-2))]">Widest gap</p>
-            <p className="mt-1 text-[20px] font-semibold leading-none tabular tracking-tight text-foreground">
+            <p className="mt-1.5 text-[20px] font-semibold leading-none tabular tracking-[-0.02em] text-foreground">
               {moneyShort(widest.lo)} – {moneyShort(widest.hi)}
             </p>
           </div>
         )}
       </CardHeader>
 
-      <CardContent className="px-2 pb-2 pt-4">
+      <CardContent className="px-3 pb-3 pt-4">
         <ResponsiveContainer width="100%" height={340}>
-          <BarChart data={rows} margin={{ top: 28, right: 20, bottom: 4, left: 4 }}>
-            <CartesianGrid vertical={false} stroke={GRID} />
+          <BarChart data={rows} margin={{ top: 30, right: 20, bottom: 4, left: 4 }}>
+            <CartesianGrid vertical={false} stroke={CHART.grid} />
             {bands.map((band) => (
               <ReferenceArea
                 key={`${band.from}-${band.to}`}
                 x1={band.from}
                 x2={band.to}
                 fill={GAP}
-                fillOpacity={0.09}
+                fillOpacity={0.08}
                 stroke={GAP}
-                strokeOpacity={0.35}
-                strokeDasharray="4 4"
+                strokeOpacity={0.45}
+                strokeDasharray="5 4"
               >
                 {band.gap && (
                   <Label
                     value={gapPhrase(band.gap)}
                     position="top"
-                    offset={12}
+                    offset={13}
                     fill={GAP}
-                    fontSize={11}
+                    fontSize={12}
                     fontWeight={600}
                   />
                 )}
@@ -133,29 +130,23 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
             <XAxis
               dataKey="label"
               tickLine={false}
-              axisLine={{ stroke: GRID }}
+              axisLine={false}
               interval="preserveStartEnd"
               minTickGap={26}
-              tick={{ fill: AXIS, fontSize: 11 }}
+              tick={CHART.axis}
             />
             <YAxis
               tickLine={false}
               axisLine={false}
               width={52}
-              tick={{ fill: AXIS, fontSize: 11 }}
+              tick={CHART.axis}
               tickFormatter={(value: number) =>
                 value >= 1000 ? `${Math.round(value / 1000)}k` : `${value}`
               }
             />
             <Tooltip
-              cursor={{ fill: "hsl(var(--muted))", fillOpacity: 0.6 }}
-              contentStyle={{
-                background: "#fff",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: 8,
-                fontSize: 12,
-                boxShadow: "0 4px 12px rgba(16,24,40,0.08)",
-              }}
+              cursor={CHART.cursor}
+              contentStyle={CHART.tooltip}
               labelFormatter={(_label, payload) => {
                 const row = payload?.[0]?.payload as (typeof rows)[number] | undefined;
                 return row ? `${moneyShort(row.lo)} – ${moneyShort(row.hi)}` : "";
@@ -172,22 +163,21 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
       </CardContent>
 
       {data.gaps.length > 0 && (
-        <div className="flex flex-wrap gap-2 border-t border-border px-5 py-3">
+        <div className="flex flex-wrap gap-2 border-t border-[hsl(var(--divider))] px-6 py-3.5">
           {data.gaps.map((gap, index) => (
-            <span
-              key={`${gap.lo}-${gap.hi}`}
-              className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1 text-[12px] text-muted-foreground"
-            >
+            <span key={`${gap.lo}-${gap.hi}`} className="pill" data-tone="gap">
               <span
-                className="h-1.5 w-1.5 rounded-full"
-                style={{ background: GAP, opacity: index === 0 ? 1 : 0.5 }}
+                className="mr-0.5 h-1.5 w-1.5 rounded-full bg-current"
+                style={{ opacity: index === 0 ? 1 : 0.5 }}
               />
-              <span className="font-medium tabular text-foreground">
+              <span className="font-semibold">
                 {moneyShort(gap.lo)} – {moneyShort(gap.hi)}
               </span>
-              {gap.kind === "empty"
-                ? "nobody sells here"
-                : `${gap.share_pct}% of the market`}
+              <span className="font-normal opacity-80">
+                {gap.kind === "empty"
+                  ? "nobody sells here"
+                  : `${gap.share_pct}% of the market`}
+              </span>
             </span>
           ))}
         </div>

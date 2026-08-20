@@ -2,65 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Light mode only. There is no dark palette and no theme toggle: the console is
-   built to be screen-recorded, and every reference dashboard the operator
-   approved is a white one. Tokens are HSL triples because the generated
-   Tailwind v3 config wraps each one in hsl(); shadcn's oklch defaults do not
-   survive that wrapper. */
+/* Light mode only. There is no dark palette and no toggle: the console is built
+   to be screen-recorded, and a theme that can flip mid-take is a liability.
+
+   Every value below is a token from the design spec, converted to the HSL
+   triples the generated Tailwind v3 config wraps in hsl(). The hex it came from
+   is in the comment so the two can be checked against each other. */
 @layer base {
   :root {
-    /* Ground. Page is pure white, the app shell one step down so the cards
-       sitting on it read as cards without needing a shadow. */
-    --background: 0 0% 100%;
-    --foreground: 220 39% 11%;        /* #111827 */
-    --shell: 210 20% 98%;             /* #F8F9FA */
+    --background: 0 0% 100%;          /* #FFFFFF  page            */
+    --shell: 220 23% 97%;             /* #F7F8FA  canvas          */
+    --foreground: 220 43% 11%;        /* #101828  text primary    */
+    --body: 216 18% 34%;              /* #475467  text secondary  */
 
     --card: 0 0% 100%;
-    --card-foreground: 220 39% 11%;
+    --card-foreground: 220 43% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 39% 11%;
+    --popover-foreground: 220 43% 11%;
 
-    /* The single accent. Indigo, spent only on the active nav item, the KPI
-       delta chips and the primary histogram series. */
+    /* The one accent, spent on the active nav item, the histogram series and
+       nothing else. Orange is not a second accent — it is the white-space
+       signal, and it appears only where the market is not selling. */
     --primary: 243 75% 59%;           /* #4F46E5 */
     --primary-foreground: 0 0% 100%;
+    --primary-tint: 240 100% 98%;     /* #F5F5FF  active nav fill */
 
-    --secondary: 220 14% 96%;         /* #F3F4F6 */
-    --secondary-foreground: 220 39% 11%;
+    --secondary: 216 24% 96%;         /* #F2F4F7 */
+    --secondary-foreground: 220 43% 11%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;   /* #6B7280 */
+    --muted: 216 24% 96%;             /* #F2F4F7 */
+    --muted-foreground: 218 15% 65%;  /* #98A2B3  labels          */
 
-    --accent: 220 14% 96%;
-    --accent-foreground: 220 39% 11%;
+    --accent: 216 24% 96%;
+    --accent-foreground: 220 43% 11%;
 
-    --destructive: 0 72% 51%;
+    --hover: 240 11% 98%;             /* #FAFAFB  table row hover */
+
+    --destructive: 4 86% 58%;         /* #F04438 */
     --destructive-foreground: 0 0% 100%;
+    --success: 152 82% 39%;           /* #12B76A */
 
-    --success: 160 84% 30%;
-
-    --border: 220 13% 91%;            /* #E5E7EB */
-    --input: 220 13% 91%;
+    --border: 216 12% 92%;            /* #E8EAED  card border     */
+    --divider: 220 17% 93%;           /* #EAECF0                  */
+    --grid: 216 24% 96%;              /* #F2F4F7  chart gridlines */
+    --input: 216 12% 92%;
     --ring: 243 75% 59%;
 
-    /* Recharts series. 1 is the histogram bar; 2 is reserved exclusively for
-       white space — amber never appears anywhere else in the product, so a
-       viewer learns its meaning from one glance. */
-    --chart-1: 243 75% 59%;
-    --chart-2: 25 95% 53%;            /* #F97316 */
+    --chart-1: 243 75% 59%;           /* #4F46E5  the series      */
+    --chart-2: 25 95% 53%;            /* #F97316  white space     */
     --chart-3: 199 89% 48%;
-    --chart-4: 160 84% 39%;
+    --chart-4: 152 82% 39%;
     --chart-5: 271 81% 56%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;                /* 12px cards */
 
-    --sidebar-background: 210 20% 98%;
-    --sidebar-foreground: 220 9% 46%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 216 18% 34%;
     --sidebar-primary: 243 75% 59%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 100%;
-    --sidebar-accent-foreground: 220 39% 11%;
-    --sidebar-border: 220 13% 91%;
+    --sidebar-accent: 240 100% 98%;   /* #F5F5FF */
+    --sidebar-accent-foreground: 243 75% 59%;
+    --sidebar-border: 220 17% 93%;    /* #EAECF0 */
     --sidebar-ring: 243 75% 59%;
   }
 }
@@ -76,18 +78,41 @@
 }
 
 @layer components {
-  /* The three type roles from the spec, as classes rather than a repeated
-     six-utility incantation on every tile. */
+  /* The spec's type scale, as four classes rather than the same six utilities
+     retyped on every tile, header and axis. */
   .stat-label {
-    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground;
+    @apply text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground;
   }
   .stat-value {
     @apply text-[30px] font-semibold leading-none tracking-[-0.02em] text-foreground;
     font-variant-numeric: tabular-nums;
   }
+  .section-title {
+    @apply text-[16px] font-semibold leading-tight tracking-[-0.01em] text-foreground;
+  }
+  .body-text {
+    @apply text-[14px] leading-normal text-[hsl(var(--body))];
+  }
+
   .panel {
     @apply rounded-xl border border-border bg-card;
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+  /* A pill carrying a figure. Neutral by default; `data-tone` colours the two
+     cases where the number itself is a verdict. */
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium;
+    @apply bg-secondary text-[hsl(var(--body))];
+    font-variant-numeric: tabular-nums;
+  }
+  .pill[data-tone="up"] {
+    @apply bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))];
+  }
+  .pill[data-tone="down"] {
+    @apply bg-destructive/10 text-destructive;
+  }
+  .pill[data-tone="gap"] {
+    @apply bg-[hsl(var(--chart-2)/0.1)] text-[hsl(var(--chart-2))];
   }
 }
 

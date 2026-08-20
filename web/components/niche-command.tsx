@@ -12,10 +12,10 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandFooter,
   CommandSeparator,
 } from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { useApi, searchPath, MIN_QUERY, SUGGESTED, type SearchCounts } from "@/lib/api";
 import { num, short } from "@/lib/format";
 
@@ -66,6 +66,23 @@ function useNicheSearch(onNavigate?: () => void) {
 
 type Search = ReturnType<typeof useNicheSearch>;
 
+/** What the current query would return, read off the same debounced request
+ *  that feeds the result rows — shown before the operator commits to it. */
+function CountStrip({ search }: { search: Search }) {
+  const { data, typed, settled, found } = search;
+  if (!typed) return <>Type two characters to see how big a market is</>;
+  if (!settled || !data) return <>Counting…</>;
+  if (!found) return <>Nothing indexed under that word yet</>;
+  return (
+    <>
+      <b className="font-semibold text-foreground">{num(data.stores)}</b> stores
+      {" · "}
+      <b className="font-semibold text-foreground">{num(data.products)}</b>{" "}
+      products
+    </>
+  );
+}
+
 function Body({ search, autoFocus }: { search: Search; autoFocus?: boolean }) {
   const { query, setQuery, data, loading, typed, settled, found, go } = search;
   return (
@@ -75,9 +92,8 @@ function Body({ search, autoFocus }: { search: Search; autoFocus?: boolean }) {
         value={query}
         onValueChange={setQuery}
         placeholder="Describe a niche — sunglasses, magnesium supplements, dog beds…"
-        className="h-12 text-[15px]"
       />
-      <CommandList className="max-h-[340px] border-t border-border">
+      <CommandList className="max-h-[340px] border-t border-[hsl(var(--grid))]">
         {!typed && (
           <CommandGroup heading="Try a market">
             <div className="flex flex-wrap gap-2 px-1 py-1">
@@ -86,7 +102,7 @@ function Body({ search, autoFocus }: { search: Search; autoFocus?: boolean }) {
                   key={name}
                   value={suggestValue(name)}
                   onSelect={() => setQuery(name)}
-                  className="w-auto rounded-full border border-border bg-white px-3 py-1.5 text-[13px] data-[selected=true]:border-primary/40"
+                  className="w-auto rounded-full border border-border bg-white px-3 py-1.5 text-[13px] data-[selected=true]:bg-[hsl(var(--hover))]"
                 >
                   <Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />
                   <span className="capitalize">{name}</span>
@@ -128,19 +144,18 @@ function Body({ search, autoFocus }: { search: Search; autoFocus?: boolean }) {
                 <div className="flex w-full items-center justify-between gap-4">
                   <div className="flex min-w-0 items-center gap-3">
                     <Search className="h-4 w-4 shrink-0 text-primary" />
-                    <span className="truncate text-base font-medium">{query}</span>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-4 tabular">
-                    <span className="flex items-center gap-1.5 text-sm">
-                      <Store className="h-3.5 w-3.5 text-muted-foreground" />
-                      <b className="font-semibold">{num(data.stores)}</b>
-                      <span className="text-muted-foreground">stores</span>
+                    <span className="truncate text-[15px] font-semibold capitalize">
+                      {query}
                     </span>
-                    <span className="text-muted-foreground">·</span>
-                    <span className="flex items-center gap-1.5 text-sm">
-                      <Package className="h-3.5 w-3.5 text-muted-foreground" />
-                      <b className="font-semibold">{short(data.products)}</b>
-                      <span className="text-muted-foreground">products</span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2.5 tabular">
+                    <span className="pill">
+                      <Store className="h-3 w-3" />
+                      {num(data.stores)} stores
+                    </span>
+                    <span className="pill">
+                      <Package className="h-3 w-3" />
+                      {short(data.products)} products
                     </span>
                     <ArrowRight className="h-4 w-4 text-muted-foreground" />
                   </div>
@@ -159,9 +174,7 @@ function Body({ search, autoFocus }: { search: Search; autoFocus?: boolean }) {
                       onSelect={() => go(type.name)}
                     >
                       <span className="truncate">{type.name}</span>
-                      <Badge variant="secondary" className="ml-auto tabular">
-                        {short(type.count)}
-                      </Badge>
+                      <span className="pill ml-auto">{short(type.count)}</span>
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -170,6 +183,9 @@ function Body({ search, autoFocus }: { search: Search; autoFocus?: boolean }) {
           </>
         )}
       </CommandList>
+      <CommandFooter>
+        <CountStrip search={search} />
+      </CommandFooter>
     </>
   );
 }

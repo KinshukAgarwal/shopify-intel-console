@@ -42,19 +42,19 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar collapsible="none" className="border-r border-border">
-      <SidebarHeader className="h-16 justify-center border-b border-border px-4">
+    <Sidebar collapsible="none" className="border-r border-sidebar-border">
+      <SidebarHeader className="h-16 justify-center border-b border-sidebar-border px-5">
         <Link href="/" className="flex items-center gap-2.5">
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
             <Command className="h-4 w-4" />
           </span>
-          <span className="text-[15px] font-semibold tracking-tight text-foreground">
+          <span className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">
             Shopify Intel
           </span>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-4">
+      <SidebarContent className="px-3 py-5">
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
             <SidebarMenu>
@@ -63,11 +63,11 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={item.match(pathname)}
-                    className="h-9 data-[active=true]:bg-white data-[active=true]:text-primary data-[active=true]:shadow-[0_1px_2px_rgba(16,24,40,0.06)] data-[active=true]:ring-1 data-[active=true]:ring-border"
+                    className="h-10 rounded-lg px-3 text-[14px] font-medium data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
                   >
                     <Link href={item.href}>
                       <item.icon className="h-4 w-4" />
-                      <span className="text-[13px]">{item.label}</span>
+                      <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -87,11 +87,11 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={query === name}
-                    className="h-8 data-[active=true]:bg-white data-[active=true]:text-foreground data-[active=true]:ring-1 data-[active=true]:ring-border"
+                    className="h-9 rounded-lg px-3 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground"
                   >
                     <Link href={`/niche?q=${encodeURIComponent(name)}`}>
                       <LayoutGrid className="h-3.5 w-3.5 opacity-50" />
-                      <span className="text-[13px] capitalize">{name}</span>
+                      <span className="text-[14px] capitalize">{name}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -101,14 +101,17 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border p-4">
+      <SidebarFooter className="border-t border-sidebar-border p-5">
         <div className="space-y-1">
           <p className="stat-label">Index</p>
-          <p className="text-[13px] font-medium tabular text-foreground">
+          <p className="text-[14px] font-semibold tabular text-foreground">
             {short(meta?.n_products)} products
           </p>
+          <p className="text-[13px] tabular text-[hsl(var(--body))]">
+            {short(meta?.n_stores)} stores
+          </p>
           <p className="text-[12px] tabular text-muted-foreground">
-            {short(meta?.n_stores)} stores · {since(meta?.indexed_at)}
+            {since(meta?.indexed_at)}
           </p>
         </div>
       </SidebarFooter>

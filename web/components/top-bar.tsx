@@ -19,7 +19,7 @@ function Freshness() {
   const { data } = useApi<Meta>("/api/meta");
   if (!data) return <Skeleton className="h-7 w-56" />;
   return (
-    <span className="flex items-center gap-2 rounded-full border border-border bg-white px-3 py-1.5 text-[12px] tabular text-muted-foreground">
+    <span className="flex items-center gap-2 rounded-full border border-border bg-white px-3 py-1.5 text-[13px] tabular text-[hsl(var(--body))]">
       <span className="relative flex h-1.5 w-1.5">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-70" />
         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-600" />
@@ -53,13 +53,13 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b border-border bg-background px-6">
       <div className="flex min-w-0 items-baseline gap-2.5">
-        <h1 className="truncate text-[15px] font-semibold tracking-tight text-foreground">
+        <h1 className="section-title truncate">
           {title}
         </h1>
         {query && (
           <>
             <span className="text-border">/</span>
-            <span className="truncate text-[15px] capitalize text-muted-foreground">
+            <span className="truncate text-[16px] capitalize text-muted-foreground">
               {query}
             </span>
           </>

@@ -1,53 +1,73 @@
 "use client";
 
-import { ArrowLeftRight, CircleDollarSign, Package, Store } from "lucide-react";
 import CountUp from "@/components/CountUp";
+import { Sparkline } from "@/components/chart-kit";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { moneyShort } from "@/lib/format";
+import { moneyShort, num } from "@/lib/format";
 import type { Niche } from "@/lib/api";
 
 /**
- * One KPI tile: uppercase label, big tabular number, one line of context.
- * React Bits' CountUp does the number animation — the only thing on this
- * screen that is animated at all, so the eye lands on the figure first.
+ * One KPI tile: small-caps label, the number as the loudest thing on the card,
+ * a tinted pill and a 40px sparkline to its right.
+ *
+ * The pill is deliberately neutral rather than a green/red delta. A delta needs
+ * a previous value and this crawl covers a single day, so every arrow on this
+ * screen would be invented. What the pill carries instead is a real second
+ * figure derived from the same query.
  */
 export function StatTile({
   label,
   value,
   prefix = "",
-  icon: Icon,
+  literal,
+  pill,
+  tone,
+  spark,
   note,
   delay = 0,
-  literal,
 }: {
   label: string;
-  value: number;
+  value?: number;
   prefix?: string;
-  icon: typeof Store;
+  literal?: string;
+  pill?: string;
+  tone?: "up" | "down" | "gap";
+  spark?: number[];
   note?: string;
   delay?: number;
-  literal?: string;
 }) {
   return (
     <Card className="panel">
       <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <span className="stat-label">{label}</span>
-          <Icon className="h-3.5 w-3.5 text-muted-foreground/60" />
-        </div>
-        <div className="mt-3 flex items-baseline">
-          {literal ? (
-            <span className="stat-value">{literal}</span>
-          ) : (
-            <span className="stat-value">
-              {prefix}
-              <CountUp to={value} duration={1.1} delay={delay} separator="," />
-            </span>
-          )}
+        <span className="stat-label">{label}</span>
+        <div className="mt-3 flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div className="stat-value truncate">
+              {literal ?? (
+                <>
+                  {prefix}
+                  <CountUp
+                    to={value ?? 0}
+                    duration={1}
+                    delay={delay}
+                    separator=","
+                  />
+                </>
+              )}
+            </div>
+            {pill && (
+              <span className="pill mt-2.5" data-tone={tone}>
+                {pill}
+              </span>
+            )}
+          </div>
+          {spark && <Sparkline values={spark} />}
         </div>
         {note && (
-          <p className="mt-2 truncate text-[12px] text-muted-foreground">{note}</p>
+          <p className="mt-3 truncate text-[13px] text-[hsl(var(--body))]">
+            {note}
+          </p>
         )}
       </CardContent>
     </Card>
@@ -55,7 +75,7 @@ export function StatTile({
 }
 
 export function StatTileSkeleton() {
-  return <Skeleton className="h-[118px] rounded-xl" />;
+  return <Skeleton className="h-[158px] rounded-xl" />;
 }
 
 export function HeadlineStats({ data }: { data: Niche | null }) {
@@ -71,43 +91,57 @@ export function HeadlineStats({ data }: { data: Niche | null }) {
 
   const { stores, products, priced, median_price } = data.headline;
   const range = data.range;
-  const spread =
-    range && range.hi > range.lo ? Math.round(range.hi - range.lo) : 0;
+  const spread = range ? Math.round(range.hi - range.lo) : 0;
+  const shape = data.histogram.map((bar) => bar.count);
+  const breadth = data.breadth.map((row) => row.stores);
+  const gaps = data.gaps.length;
+  const multiple = range && range.lo > 0 ? range.hi / range.lo : 0;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatTile
         label="Stores in market"
         value={stores}
-        icon={Store}
+        spark={breadth}
+        pill={`${num(data.vendors.distinct)} brands`}
         note="Selling at least one matching product"
       />
       <StatTile
         label="Products tracked"
         value={products}
-        icon={Package}
         delay={0.06}
-        note={`${priced.toLocaleString()} carry a price`}
+        spark={shape}
+        pill={
+          products > 0
+            ? `${Math.round((priced / products) * 100)}% priced`
+            : undefined
+        }
+        note={`${num(priced)} carry a price`}
       />
       <StatTile
         label="Median price"
         value={median_price == null ? 0 : Math.round(median_price)}
         prefix="$"
-        icon={CircleDollarSign}
         delay={0.12}
+        spark={shape}
+        pill={range ? `${moneyShort(range.lo)}–${moneyShort(range.hi)}` : undefined}
         note="Midpoint of every priced product"
       />
       <StatTile
         label="Price spread"
         value={spread}
         prefix="$"
-        icon={ArrowLeftRight}
         delay={0.18}
-        note={
-          range
-            ? `${moneyShort(range.lo)} – ${moneyShort(range.hi)} (1st–99th pct)`
-            : "No priced products yet"
+        spark={shape}
+        pill={
+          gaps > 0
+            ? `${gaps} white-space gap${gaps > 1 ? "s" : ""}`
+            : multiple
+              ? `${multiple.toFixed(1)}× low to high`
+              : undefined
         }
+        tone={gaps > 0 ? "gap" : undefined}
+        note="1st to 99th percentile of the catalogue"
       />
     </div>
   );
