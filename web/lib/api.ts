@@ -124,10 +124,10 @@ export function useApi<T>(path: string | null, debounceMs = 0) {
   return { data, error, loading };
 }
 
-// A one-character prefix query makes FTS5 walk essentially the whole term
-// dictionary. Two characters is where it stops being pathological, and nobody
-// picks a market from one letter anyway.
-export const MIN_QUERY = 2;
+// Short prefix terms make FTS5 walk most of a 30M-row index. Measured cold
+// against the live index: "su" 17.8 s, "sun" 5.4 s, "sung" 538 ms. Four is the
+// floor the API prewarms to, and nobody picks a market from three letters.
+export const MIN_QUERY = 4;
 
 export const searchPath = (q: string) =>
   q.trim().length >= MIN_QUERY

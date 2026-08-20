@@ -71,6 +71,13 @@ def cached(key, produce):
 WARM = ["sunglasses", "supplements", "candles", "dresses", "sneakers",
         "coffee", "skincare", "jewelry"]
 
+# Below this, an FTS5 prefix term walks so much of the 30M-row index that the
+# query stops being interactive. Measured cold on this index, counts only:
+# "su" 17.8 s, "sun" 5.4 s, "sung" 538 ms. Four characters is the first length
+# that is both usable cold and cheap enough to prewarm every prefix of. The
+# client enforces the same floor, so no request is ever made below it.
+MIN_QUERY = 4
+
 
 @app.on_event("startup")
 def prewarm():
@@ -87,10 +94,17 @@ def prewarm():
         conn = sqlite3.connect("file:%s?mode=ro" % DB_PATH, uri=True)
         try:
             for term in WARM:
-                for prefix in (term[:3], term):
+                # Every prefix, not just one: the operator types the niche a
+                # character at a time on camera and the debounce fires a
+                # request for whichever prefixes it lands on. Measured cold,
+                # "sung" costs 538 ms and "sun" 5.4 s; warm, both are 2 ms.
+                for length in range(MIN_QUERY, len(term) + 1):
+                    prefix = term[:length]
                     cached(("search", prefix),
                            lambda t=prefix: queries.search_counts(conn, t))
                 cached(("niche", term), lambda t=term: queries.niche(conn, t))
+                cached(("stores", term, 1000),
+                       lambda t=term: queries.store_rows(conn, t, 1000))
         except sqlite3.Error as error:          # a half-built index, say
             print("prewarm skipped: %s" % error)
         finally:

@@ -85,6 +85,30 @@ def search_counts(conn, text):
 
 # ------------------------------------------------------------------ screen 2
 
+def _price_window(conn):
+    """The price range the histogram frames, via Tukey's outlier fence.
+
+    Percentile clipping is not enough on this data. Measured on the live index,
+    "sunglasses" runs from $5 at the 1st percentile to $99,900 at the 99th, and
+    one product is priced at $28.7M — so a p1-p99 frame puts every real product
+    in the first of forty bars and the chart says nothing. The fence
+    (Q3 + 1.5 x IQR) tracks the bulk of the market instead: the same niche
+    frames at roughly $5-$524, where the distribution is actually legible.
+
+    The count outside the frame is returned to the client, so a trimmed tail is
+    disclosed rather than hidden.
+    """
+    q1, q3 = _quantile(conn, 0.25), _quantile(conn, 0.75)
+    p1, p99 = _quantile(conn, 0.01), _quantile(conn, 0.99)
+    if q1 is None or q3 is None:
+        return p1, p99
+    spread = q3 - q1
+    lo = max(p1 if p1 is not None else 0.0, max(0.0, q1 - 1.5 * spread))
+    hi = min(p99 if p99 is not None else q3, q3 + 1.5 * spread)
+    # A market with no spread at all (every product one price) collapses the
+    # fence onto a point; _histogram widens it and niche() suppresses the gaps.
+    return (lo, hi) if hi > lo else (p1, p99)
+
 def _histogram(conn, lo, hi):
     """`BINS` equal-width bars between lo and hi, zero-filled.
 
@@ -111,6 +135,16 @@ def _histogram(conn, lo, hi):
             for i, c in enumerate(counts)], width
 
 
+def _outside(conn, lo, hi):
+    """Priced products the framed range leaves out, above and below."""
+    if lo is None or hi is None:
+        return {"below": 0, "above": 0}
+    row = conn.execute(
+        "SELECT sum(price < ?), sum(price > ?) FROM m WHERE price IS NOT NULL",
+        (lo, hi)).fetchone()
+    return {"below": row[0] or 0, "above": row[1] or 0}
+
+
 def _gaps(histogram, total):
     """White space: price bands where the market sells (almost) nothing.
 
@@ -133,7 +167,11 @@ def _gaps(histogram, total):
     empty = runs(lambda bar: bar["count"] == 0, 2)
     kind = "empty"
     if not empty and total:
-        empty = runs(lambda bar: bar["count"] <= max(1, total * 0.002), 3)
+        # Edge runs are an artefact of where the frame was drawn, not a hole in
+        # the market, so the thin fallback ignores anything touching either end.
+        empty = [(a, b) for a, b in
+                 runs(lambda bar: bar["count"] <= max(1, total * 0.002), 3)
+                 if a > 0 and b < len(histogram) - 1]
         kind = "thin"
     out = []
     for start, end in empty:
@@ -209,7 +247,7 @@ def niche(conn, text):
     stores = conn.execute("SELECT count(DISTINCT store_id) FROM m").fetchone()[0]
     priced = conn.execute(
         "SELECT count(*) FROM m WHERE price IS NOT NULL").fetchone()[0]
-    lo, hi = _quantile(conn, 0.01), _quantile(conn, 0.99)
+    lo, hi = _price_window(conn)
     # A market priced at a single point has its range widened for the chart, so
     # the flanking bars are empty by construction. Reporting them as white space
     # would be inventing an insight — the one thing a sales tool must not do.
@@ -219,7 +257,8 @@ def niche(conn, text):
         "query": text,
         "headline": {"stores": stores, "products": total, "priced": priced,
                      "median_price": _quantile(conn, 0.5)},
-        "range": {"lo": lo, "hi": hi, "bin_width": width},
+        "range": {"lo": lo, "hi": hi, "bin_width": width,
+                  "outside": _outside(conn, lo, hi)},
         "histogram": histogram,
         "gaps": [] if single_price else _gaps(histogram, priced),
         "bands": _bands(conn) if priced else [],
@@ -273,12 +312,19 @@ def store_detail(conn, store_id):
             "top_vendors": [{"name": v, "count": n} for v, n in vendors]}
 
 
+# What the console is allowed to see. `stage`, `n_raw` and `fingerprint` are the
+# indexer's own bookkeeping and mean nothing to a caller.
+PUBLIC_META = ("indexed_at", "n_products", "n_stores", "n_duplicates",
+               "build_seconds")
+
+
 def meta(conn):
     values = dict(conn.execute("SELECT key, value FROM meta"))
-    for key in ("indexed_at", "n_products", "n_stores"):
-        if key in values:
-            values[key] = int(float(values[key]))
-    return values
+    out = {key: values[key] for key in PUBLIC_META if key in values}
+    for key in ("indexed_at", "n_products", "n_stores", "n_duplicates"):
+        if key in out:
+            out[key] = int(float(out[key]))
+    return out
 
 
 # --------------------------------------------------------------- self-check
