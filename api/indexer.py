@@ -67,6 +67,13 @@ def fingerprint(paths):
     return "%d:%.0f:%d" % (len(paths), newest, total)
 
 
+def discard(path):
+    """Delete a partial build and any journal beside it."""
+    for suffix in ("", "-journal", "-wal"):
+        if os.path.exists(path + suffix):
+            os.remove(path + suffix)
+
+
 def connect_build(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     conn = sqlite3.connect(path)
@@ -83,8 +90,15 @@ def connect_build(path):
 
 # ---------------------------------------------------------------- price pass
 
-def price_ready(conn):
-    """True when a partial build left a price table that is safe to reuse.
+# The build in the order its passes run. Each name is written to meta.stage the
+# moment that pass commits, so --resume can tell "finished" from "killed
+# halfway through" — a distinction row counts cannot make, since a partial pass
+# also leaves rows behind.
+STAGES = ("price", "attached")
+
+
+def finished_stage(conn):
+    """The last pass that completed, or None if there is nothing safe to reuse.
 
     The build runs with `journal_mode=OFF`, which is right for a file that is
     rebuilt from source but means a killed process can leave the file corrupt.
@@ -94,11 +108,13 @@ def price_ready(conn):
     try:
         if conn.execute("PRAGMA quick_check(1)").fetchone()[0] != "ok":
             log("partial build failed quick_check — rebuilding from scratch")
-            return False
-        return conn.execute("SELECT count(*) FROM price").fetchone()[0] > 0
+            return None
+        row = conn.execute("SELECT value FROM meta "
+                           "WHERE key='stage'").fetchone()
     except sqlite3.Error as error:
         log("partial build unusable (%s) — rebuilding from scratch" % error)
-        return False
+        return None
+    return row[0] if row and row[0] in STAGES else None
 
 
 def build_price(conn, limit=None):
@@ -331,6 +347,41 @@ def is_current(path):
     return bool(row) and row[0] == current_fingerprint()
 
 
+# --------------------------------------------------------------- self-check
+
+def _demo():
+    """One runnable check: --resume must reuse a finished pass and only that.
+
+    Resume is the pass that can silently corrupt an index — skipping work that
+    did not actually finish yields a half-built file that still answers queries.
+    So the check covers all three verdicts: no marker, a good marker, and a
+    marker this version does not know.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        path = os.path.join(directory, "partial.db")
+
+        conn = connect_build(path)
+        assert finished_stage(conn) is None, "an empty file has nothing to reuse"
+
+        set_meta(conn, stage="price")
+        assert finished_stage(conn) == "price"
+
+        set_meta(conn, stage="attached")
+        assert finished_stage(conn) == "attached"
+
+        # A marker from a future version, or a typo, must not be trusted.
+        set_meta(conn, stage="halfway")
+        assert finished_stage(conn) is None
+        conn.close()
+
+        discard(path)
+        assert not os.path.exists(path), "discard leaves no partial behind"
+
+    print("[index] self-check ok")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rebuild", action="store_true",
@@ -339,9 +390,15 @@ def main():
                         help="smoke test: read only N obs shards and N product rows")
     parser.add_argument("--out", default=DB_PATH)
     parser.add_argument("--resume", action="store_true",
-                        help="keep a partial build and skip the price pass if "
-                             "it already completed")
+                        help="keep a partial build and skip whichever passes "
+                             "already finished in it")
+    parser.add_argument("--self-check", action="store_true",
+                        help="run the resume self-check and exit")
     args = parser.parse_args()
+
+    if args.self_check:
+        _demo()
+        return
 
     if not args.rebuild and not args.limit and is_current(args.out):
         log("shards unchanged since the last build — nothing to do "
@@ -352,26 +409,39 @@ def main():
     stamp = current_fingerprint()
     tmp = args.out + ".building"
     if not args.resume:
-        for suffix in ("", "-journal", "-wal"):
-            if os.path.exists(tmp + suffix):
-                os.remove(tmp + suffix)
+        discard(tmp)
     conn = connect_build(tmp)
 
-    if args.resume and price_ready(conn):
-        n_prices = conn.execute("SELECT count(*) FROM price").fetchone()[0]
-        log("resuming: reusing %s prices from the partial build" % f"{n_prices:,}")
-    else:
+    done = finished_stage(conn) if args.resume else None
+    if done is None:
+        # Nothing reusable. Throw the partial file away rather than writing new
+        # tables alongside its half-written ones.
         conn.close()
-        for suffix in ("", "-journal", "-wal"):
-            if os.path.exists(tmp + suffix):
-                os.remove(tmp + suffix)
+        discard(tmp)
         conn = connect_build(tmp)
         n_prices = build_price(conn, args.limit)
-    log("prices: %s products" % f"{n_prices:,}")
-    n_products = build_products(conn, args.limit)
-    n_duplicates = dedupe(conn)
-    n_products -= n_duplicates
-    attach_prices(conn)
+        log("prices: %s products" % f"{n_prices:,}")
+        set_meta(conn, stage="price")
+    else:
+        log("resuming: the %s pass already finished in this partial build" % done)
+
+    if done != "attached":
+        n_products = build_products(conn, args.limit)
+        n_duplicates = dedupe(conn)
+        n_products -= n_duplicates
+        attach_prices(conn)
+        # Recorded here, not at the end: after this point `price` is gone and
+        # `products` is deduped, so the counts can no longer be recomputed.
+        set_meta(conn, stage="attached", n_products=n_products,
+                 n_duplicates=n_duplicates)
+    else:
+        counts = dict(conn.execute(
+            "SELECT key, value FROM meta WHERE key IN ('n_products','n_duplicates')"))
+        n_products = int(counts["n_products"])
+        n_duplicates = int(counts["n_duplicates"])
+
+    # The store rollups are the one pass cheap enough to always redo, so they
+    # are not a resume point.
     n_stores = build_stores(conn)
     set_meta(conn, indexed_at=int(time.time()), fingerprint=stamp,
              n_products=n_products, n_stores=n_stores,

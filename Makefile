@@ -1,4 +1,4 @@
-.PHONY: help setup index reindex api web dev check clean
+.PHONY: help setup index reindex resume api web dev check clean
 
 SHELL   := /bin/bash
 PY      ?= python3
@@ -12,6 +12,7 @@ help:
 	@echo "make setup    install Python and Node dependencies"
 	@echo "make index    build data/console.db from the crawl shards (skips if unchanged)"
 	@echo "make reindex  force a rebuild"
+	@echo "make resume   continue a killed build from its last finished pass"
 	@echo "make dev      run the API and the web app together (the demo command)"
 	@echo "make api      run only the FastAPI server on :$(API_PORT)"
 	@echo "make web      run only the Next.js app on :$(WEB_PORT)"
@@ -26,6 +27,11 @@ index:
 
 reindex:
 	$(PY) api/indexer.py --rebuild
+
+# Pick a killed build back up. Whichever passes already committed are skipped;
+# a partial file that fails quick_check is thrown away and rebuilt.
+resume:
+	$(PY) api/indexer.py --rebuild --resume
 
 api:
 	cd api && $(PY) -m uvicorn main:app --host 127.0.0.1 --port $(API_PORT)
@@ -44,6 +50,7 @@ dev:
 
 check:
 	$(PY) api/queries.py
+	$(PY) api/indexer.py --self-check
 	cd web && npx tsc --noEmit
 
 clean:
