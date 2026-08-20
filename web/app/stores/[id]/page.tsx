@@ -68,31 +68,38 @@ export default function StoreDetailPage() {
             <StatTile
               label="Products"
               value={data.n_products}
-              pill={
+              meta={
                 data.n_products
                   ? `${Math.round((data.n_priced / data.n_products) * 100)}% priced`
                   : undefined
               }
-              note="Whole catalogue, not only this niche"
+              bar={[
+                { label: "priced", value: data.n_priced, tone: "ink" },
+                {
+                  label: "unpriced",
+                  value: Math.max(0, data.n_products - data.n_priced),
+                },
+              ]}
+              caption="Whole catalogue, not only this niche"
             />
             <StatTile
               label="With a price"
               value={data.n_priced}
               delay={0.06}
-              pill={`${num(data.top_vendors.length)} vendors named`}
-              note="Products carrying at least one variant price"
+              meta={`${num(data.top_vendors.length)} vendors`}
+              caption="Products carrying at least one variant price"
             />
             <StatTile
               label="Median price"
               literal={money(data.median_price)}
-              pill="midpoint of the catalogue"
-              note="Half this store's products sit below it"
+              meta="midpoint"
+              caption="Half this store's products sit below it"
             />
             <StatTile
               label="Price range"
               literal={`${money(data.min_price, 0)} – ${money(data.max_price, 0)}`}
-              pill="cheapest to dearest"
-              note="Lowest and highest variant price seen"
+              meta="low to high"
+              caption="Lowest and highest variant price seen"
             />
           </div>
 

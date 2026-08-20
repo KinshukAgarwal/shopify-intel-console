@@ -40,6 +40,9 @@
     --accent-foreground: 24 10% 10%;
 
     --hover: 60 5% 97%;               /* table row hover           */
+    --track: 216 16% 91%;             /* #E4E7EC  every unemphasised
+                                         mark in a chart, and the bar
+                                         track under a KPI figure     */
 
     /* THE accent. White space only. */
     --signal: 25 95% 53%;             /* #F97316                   */
@@ -53,7 +56,7 @@
     --input: 60 3% 94%;
     --ring: 24 10% 10%;
 
-    --chart-1: 24 10% 10%;            /* the series — greyscale    */
+    --chart-1: 24 10% 10%;            /* the one emphasised mark   */
     --chart-2: 25 95% 53%;            /* white space               */
     --chart-3: 0 0% 64%;
     --chart-4: 0 0% 45%;

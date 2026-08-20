@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CHART } from "@/components/chart-kit";
+import { BreadthRows } from "@/components/headline-stats";
 import { moneyShort, num } from "@/lib/format";
 import type { Niche } from "@/lib/api";
 
@@ -53,10 +54,11 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
   if (!data) return <Skeleton className="h-[380px] rounded-xl" />;
   const { by_products, by_stores, distinct } = data.vendors;
 
+  // Same selective-colour rule as the histogram: the leader in ink, the rest in
+  // the flat track grey.
   const chart = (
     list: { vendor: string; products: number; stores: number }[],
-    key: "products" | "stores",
-    colour: string
+    key: "products" | "stores"
   ) => {
     if (list.length === 0) {
       return <Empty>No vendor is named on these products.</Empty>;
@@ -94,14 +96,14 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
               offset={8}
               formatter={(value: number) => num(value)}
               style={{
-                fill: "hsl(var(--foreground))",
+                fill: "hsl(var(--body))",
                 fontSize: 12,
                 fontWeight: 600,
                 fontVariantNumeric: "tabular-nums",
               }}
             />
             {rows.map((_row, index) => (
-              <Cell key={index} fill={colour} fillOpacity={0.9 - index * 0.085} />
+              <Cell key={index} fill={index === 0 ? CHART.ink : CHART.rest} />
             ))}
           </Bar>
         </BarChart>
@@ -127,10 +129,10 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="products">
-          {chart(by_products, "products", CHART.series)}
+          {chart(by_products, "products")}
         </TabsContent>
         <TabsContent value="stores">
-          {chart(by_stores, "stores", CHART.series)}
+          {chart(by_stores, "stores")}
         </TabsContent>
       </Tabs>
     </Panel>
@@ -138,49 +140,20 @@ export function BrandConcentration({ data }: { data: Niche | null }) {
 }
 
 export function AssortmentBreadth({ data }: { data: Niche | null }) {
-  if (!data) return <Skeleton className="h-[380px] rounded-xl" />;
-  const rows = data.breadth;
-  const any = rows.some((row) => row.stores > 0);
+  if (!data) return <Skeleton className="h-[380px] rounded-[14px]" />;
+  const any = data.breadth.some((row) => row.stores > 0);
   return (
     <Panel
       title="Assortment breadth"
       description="How many products each store carries inside this niche."
-      aside={
-        <span className="pill shrink-0">{num(data.headline.stores)} stores</span>
-      }
+      aside={<span className="pill shrink-0">{num(data.headline.stores)} stores</span>}
     >
       {!any ? (
         <Empty>No stores matched.</Empty>
       ) : (
-        <ResponsiveContainer width="100%" height={272}>
-          <BarChart data={rows} margin={{ top: 12, right: 12, bottom: 4, left: 4 }}>
-            <CartesianGrid vertical={false} stroke={CHART.grid} />
-            <XAxis
-              dataKey="label"
-              tickLine={false}
-              axisLine={false}
-              tick={CHART.axis}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              width={48}
-              tick={CHART.axis}
-            />
-            <Tooltip
-              cursor={CHART.cursor}
-              contentStyle={CHART.tooltip}
-              formatter={(value) => [num(Number(value ?? 0)), "stores"]}
-            />
-            <Bar
-              dataKey="stores"
-              fill={CHART.series}
-              fillOpacity={0.88}
-              radius={[3, 3, 0, 0]}
-              maxBarSize={44}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+        <div className="px-2 pt-2">
+          <BreadthRows data={data} />
+        </div>
       )}
     </Panel>
   );

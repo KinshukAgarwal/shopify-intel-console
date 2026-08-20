@@ -62,21 +62,24 @@ function StoresView() {
             <StatTile
               label="Stores competing"
               value={data.length}
-              spark={depths}
-              pill={`${num(withPrices)} priced`}
-              note="Ranked by products carried in this niche"
+              meta={`${num(withPrices)} priced`}
+              bar={[
+                { label: "priced", value: withPrices, tone: "ink" },
+                { label: "unpriced", value: Math.max(0, data.length - withPrices) },
+              ]}
+              caption="Ranked by products carried in this niche"
             />
             <StatTile
               label="Products in niche"
               value={matched}
               delay={0.06}
               spark={depths}
-              pill={
+              meta={
                 data.length
                   ? `${num(Math.round(matched / data.length))} per store`
                   : undefined
               }
-              note="Summed across every store below"
+              caption="Summed across every store below"
             />
             <StatTile
               label="Median store price"
@@ -84,15 +87,15 @@ function StoresView() {
               prefix="$"
               delay={0.12}
               spark={averages}
-              pill="median of store averages"
-              note="Half the stores price below this line"
+              meta="of store averages"
+              caption="Half the stores price below this line"
             />
             <StatTile
               label="Deepest catalogue"
               literal={deepest ? num(deepest.matched) : "—"}
               spark={depths}
-              pill={deepest ? deepest.domain : undefined}
-              note="The store with the most products in this market"
+              meta={deepest ? "products" : undefined}
+              caption={deepest ? deepest.domain : "No stores matched"}
             />
           </>
         ) : (

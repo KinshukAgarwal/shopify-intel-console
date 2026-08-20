@@ -19,8 +19,14 @@ import { CHART } from "@/components/chart-kit";
 import { moneyShort, num } from "@/lib/format";
 import type { Gap, Niche } from "@/lib/api";
 
-const GAP = CHART.signal;  // the one accent, spent only on white space
-const BAR = CHART.series;
+// Selective colour, the rule that makes the chart read as designed rather than
+// generated: every bar is the flat grey track, and exactly two things earn a
+// mark — the bucket the median falls in (ink) and the bands nobody sells into
+// (the accent). Colouring all forty bars would say everything is equally
+// interesting, which is the opposite of the point.
+const GAP = CHART.signal;
+const INK = CHART.ink;
+const REST = CHART.rest;
 
 /** The one-line verdict a viewer should be able to read off the chart. */
 function gapPhrase(gap: Gap) {
@@ -51,12 +57,14 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
   const inGap = data.histogram.map((bar) =>
     data.gaps.some((gap) => bar.lo >= gap.lo - 1e-9 && bar.hi <= gap.hi + 1e-9)
   );
+  const median = data.headline.median_price;
   const rows = data.histogram.map((bar, index) => ({
     label: moneyShort(bar.lo),
     lo: bar.lo,
     hi: bar.hi,
     count: bar.count,
     gap: inGap[index],
+    median: median != null && median >= bar.lo && median < bar.hi,
   }));
 
   // Contiguous runs of gap bars, each carrying the gap it came from so the
@@ -84,8 +92,9 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
         <div>
           <h2 className="section-title">Price distribution</h2>
           <p className="body-text mt-1.5">
-            {num(data.headline.priced)} priced products, bucketed. The shaded
-            band is white space — the market is not selling there.
+            {num(data.headline.priced)} priced products, bucketed. The dark bar
+            is the median; the shaded band is white space, where the market is
+            not selling.
           </p>
         </div>
       </CardHeader>
@@ -145,7 +154,11 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
             />
             <Bar dataKey="count" radius={[2, 2, 0, 0]} maxBarSize={18}>
               {rows.map((row, index) => (
-                <Cell key={index} fill={row.gap ? GAP : BAR} fillOpacity={row.gap ? 0.6 : 0.88} />
+                <Cell
+                  key={index}
+                  fill={row.gap ? GAP : row.median ? INK : REST}
+                  fillOpacity={row.gap ? 0.75 : 1}
+                />
               ))}
             </Bar>
           </BarChart>
@@ -154,8 +167,18 @@ export function PriceHistogram({ data }: { data: Niche | null }) {
 
       {data.gaps.length > 0 && (
         <div className="flex flex-wrap gap-2 px-6 pb-6 pt-1">
+          {median != null && (
+            <span className="pill">
+              <span className="h-2 w-2 rounded-full bg-foreground" />
+              <span className="font-semibold text-foreground">
+                {moneyShort(median)}
+              </span>
+              median
+            </span>
+          )}
           {data.gaps.map((gap) => (
             <span key={`${gap.lo}-${gap.hi}`} className="pill" data-tone="signal">
+              <span className="h-2 w-2 rounded-full bg-current" />
               <span className="font-semibold">
                 {moneyShort(gap.lo)} – {moneyShort(gap.hi)}
               </span>

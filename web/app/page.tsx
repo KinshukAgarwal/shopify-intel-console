@@ -44,11 +44,14 @@ function MarketCard({ name }: { name: string }) {
                 </div>
                 <Sparkline values={data.histogram.map((bar) => bar.count)} />
               </div>
-              {gaps > 0 && (
-                <span className="pill mt-4" data-tone="signal">
-                  {gaps} white-space gap{gaps > 1 ? "s" : ""}
-                </span>
-              )}
+              <div className="mt-5 h-[26px]">
+                {gaps > 0 && (
+                  <span className="pill" data-tone="signal">
+                    <span className="h-2 w-2 rounded-full bg-current" />
+                    {gaps} white-space gap{gaps > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
             </>
           ) : (
             <div className="mt-4 space-y-3">
@@ -77,31 +80,31 @@ export default function SearchPage() {
             <StatTile
               label="Products indexed"
               value={meta.n_products ?? 0}
-              pill="full-text searchable"
-              note="Every product the crawl has written to a cold shard"
+              meta="full text"
+              caption="Every product the crawl has written to a cold shard"
             />
             <StatTile
               label="Stores indexed"
               value={meta.n_stores ?? 0}
               delay={0.06}
-              pill={
+              meta={
                 meta.n_products && meta.n_stores
                   ? `${num(Math.round(meta.n_products / meta.n_stores))} products each`
                   : undefined
               }
-              note="Counting only stores with a live catalogue"
+              caption="Counting only stores with a live catalogue"
             />
             <StatTile
               label="Index built"
               literal={day(meta.indexed_at)}
-              pill={minutes ? `${minutes} min build` : undefined}
-              note={`${since(meta.indexed_at)} · from the crawl's cold shards`}
+              meta={minutes ? `${minutes} min build` : undefined}
+              caption={`${since(meta.indexed_at)} · from the crawl's cold shards`}
             />
             <StatTile
               label="Query plan"
               literal="1 MATCH"
-              pill="FTS5 · resumable"
-              note="Every panel reads one materialised match, not eight"
+              meta="FTS5"
+              caption="Every panel reads one materialised match, not eight"
             />
           </>
         ) : (
