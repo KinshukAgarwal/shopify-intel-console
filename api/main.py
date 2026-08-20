@@ -65,6 +65,41 @@ def cached(key, produce):
     return value
 
 
+# The niches offered on the search screen. Warming these on startup is the
+# difference between a crisp demo and a three-second stall on the first
+# keystroke: the index is several GB and the OS page cache starts empty.
+WARM = ["sunglasses", "supplements", "candles", "dresses", "sneakers",
+        "coffee", "skincare", "jewelry"]
+
+
+@app.on_event("startup")
+def prewarm():
+    """Fill the page cache and the result cache in the background.
+
+    A thread, not a blocking call, so uvicorn binds the port immediately and
+    the UI can render its skeletons while this is still running.
+    """
+    if not os.path.exists(DB_PATH):
+        return
+
+    def run():
+        started = time.time()
+        conn = sqlite3.connect("file:%s?mode=ro" % DB_PATH, uri=True)
+        try:
+            for term in WARM:
+                for prefix in (term[:3], term):
+                    cached(("search", prefix),
+                           lambda t=prefix: queries.search_counts(conn, t))
+                cached(("niche", term), lambda t=term: queries.niche(conn, t))
+        except sqlite3.Error as error:          # a half-built index, say
+            print("prewarm skipped: %s" % error)
+        finally:
+            conn.close()
+        print("prewarmed %d niches in %.1fs" % (len(WARM), time.time() - started))
+
+    threading.Thread(target=run, daemon=True).start()
+
+
 @app.get("/api/meta")
 def api_meta():
     """Index freshness. The crawl is still running, so counts move between

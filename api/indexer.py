@@ -19,6 +19,7 @@ else. Storing 23M titles twice would roughly double the file for nothing.
 Run:  python3 api/indexer.py [--rebuild] [--limit N]
 """
 import argparse
+import csv
 import gzip
 import os
 import re
@@ -34,6 +35,11 @@ DB_PATH = os.environ.get("CONSOLE_DB", os.path.join(REPO, "data", "console.db"))
 
 sys.path.insert(0, BACKEND)
 from shopify_intel import coldstore  # noqa: E402  (needs the path above)
+
+# One real product on this crawl carries a tag string past Python's 128 KB csv
+# field cap, and the default makes `csv` raise rather than truncate. The limit
+# is module-global, so raising it here also covers coldstore's own DictReader.
+csv.field_size_limit(16 * 1024 * 1024)
 
 COLD_DIR = os.path.join(BACKEND, "data", "cold")
 INTEL_DB = os.path.join(BACKEND, "data", "intel.db")
@@ -76,6 +82,24 @@ def connect_build(path):
 
 
 # ---------------------------------------------------------------- price pass
+
+def price_ready(conn):
+    """True when a partial build left a price table that is safe to reuse.
+
+    The build runs with `journal_mode=OFF`, which is right for a file that is
+    rebuilt from source but means a killed process can leave the file corrupt.
+    So `--resume` is only honoured after `quick_check` passes; otherwise the
+    partial build is worthless and the caller starts over.
+    """
+    try:
+        if conn.execute("PRAGMA quick_check(1)").fetchone()[0] != "ok":
+            log("partial build failed quick_check — rebuilding from scratch")
+            return False
+        return conn.execute("SELECT count(*) FROM price").fetchone()[0] > 0
+    except sqlite3.Error as error:
+        log("partial build unusable (%s) — rebuilding from scratch" % error)
+        return False
+
 
 def build_price(conn, limit=None):
     """Collapse the observation series to one price per product.
@@ -314,6 +338,9 @@ def main():
     parser.add_argument("--limit", type=int, default=None,
                         help="smoke test: read only N obs shards and N product rows")
     parser.add_argument("--out", default=DB_PATH)
+    parser.add_argument("--resume", action="store_true",
+                        help="keep a partial build and skip the price pass if "
+                             "it already completed")
     args = parser.parse_args()
 
     if not args.rebuild and not args.limit and is_current(args.out):
@@ -324,12 +351,22 @@ def main():
     started = time.time()
     stamp = current_fingerprint()
     tmp = args.out + ".building"
-    for suffix in ("", "-journal", "-wal"):
-        if os.path.exists(tmp + suffix):
-            os.remove(tmp + suffix)
+    if not args.resume:
+        for suffix in ("", "-journal", "-wal"):
+            if os.path.exists(tmp + suffix):
+                os.remove(tmp + suffix)
     conn = connect_build(tmp)
 
-    n_prices = build_price(conn, args.limit)
+    if args.resume and price_ready(conn):
+        n_prices = conn.execute("SELECT count(*) FROM price").fetchone()[0]
+        log("resuming: reusing %s prices from the partial build" % f"{n_prices:,}")
+    else:
+        conn.close()
+        for suffix in ("", "-journal", "-wal"):
+            if os.path.exists(tmp + suffix):
+                os.remove(tmp + suffix)
+        conn = connect_build(tmp)
+        n_prices = build_price(conn, args.limit)
     log("prices: %s products" % f"{n_prices:,}")
     n_products = build_products(conn, args.limit)
     n_duplicates = dedupe(conn)
