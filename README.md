@@ -44,10 +44,10 @@ web/  Next.js 14 App Router — proxies /api/* to the FastAPI server
 ### Why the index looks like this
 
 - **Contentless FTS5** (`content=''`). No screen displays product text, so
-  storing 23M titles a second time would roughly double the file for nothing.
+  storing 30M titles a second time would roughly double the file for nothing.
   The FTS rowid *is* `products.id`, so a match joins straight back.
 - **One MATCH per request.** The matched rows land in a TEMP table and every
-  aggregate reads that. On a 23M-row index the MATCH is the cost; aggregating an
+  aggregate reads that. On a 30M-row index the MATCH is the cost; aggregating an
   80k-row temp table afterwards is free.
 - **`product_type` is not a taxonomy.** It is free text with 42,207 distinct
   values and 15% of products leave it blank, and tags are 781k values of mostly
@@ -86,8 +86,8 @@ want fresher numbers; the mtime/size fingerprint in `meta` makes a no-change run
 instant. The console stamps the index time in the top bar so a demo never claims
 a stale total.
 
-**Measured on this machine** (20 cores, crawl running concurrently, ~9.5% of the
-store list covered):
+**Measured on this machine** (20 cores, crawl running concurrently, ~16% of the
+161,208-domain store list covered so far):
 
 | | |
 |---|---|
@@ -164,15 +164,21 @@ unmatched query returns the intentional-empty shape instead of raising.
    character at a time — the counts update as you type, which is the hook.
 4. Enter. Let the headline counters finish animating before you speak.
 5. Point at the amber bands on the histogram: *"nobody in this market sells
-   between $45 and $80."* That is the money shot; the gap cards on the right
-   spell out the same number in words.
+   between $1,547 and $1,785."* That is the money shot; the gap cards on the
+   right spell out the same number in words.
+
+   **Pick the niche for this shot.** Mass markets are priced continuously and
+   the console correctly reports no white space — measured on sunglasses,
+   coffee, candles, mattresses and wedding dresses. Specialist niches are where
+   the holes are: `saxophone` and `office chair` both report real ones.
 6. Switch the brand-concentration tabs. **By products** and **by stores** are
    different lists — a vendor with 9,000 products in one store is a catalogue, a
    vendor stocked by 300 stores is a brand. Say that out loud.
 7. Click through to the store list, sort by a column, click a row.
 
-Suggested niches, all measured to return a real market: sunglasses, supplements,
-candles, dresses, sneakers, coffee, skincare, jewelry.
+Suggested niches, all measured to return a real market and all prewarmed by the
+API: sunglasses, supplements, candles, dresses, sneakers, coffee, skincare,
+jewelry. For the white-space shot specifically, use `saxophone`.
 
 ---
 
