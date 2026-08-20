@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Search, Store, Package, Sparkles } from "lucide-react";
 
 import {
   Command,
+  CommandDialog,
   CommandEmpty,
   CommandGroup,
   CommandInput,
@@ -30,33 +31,55 @@ const SUGGESTED = [
   "jewelry",
 ];
 
-/**
- * Input + result list only — no cmdk root. Inline use wraps it in `Command`
- * below; the ⌘K dialog wraps it in shadcn's `CommandDialog`, which supplies
- * its own root. Two roots would break keyboard navigation.
- */
-export function NicheCommandBody({
-  autoFocus = false,
-  onNavigate,
-}: {
-  autoFocus?: boolean;
-  onNavigate?: () => void;
-}) {
+const OPEN_ITEM = "open-market";
+const suggestValue = (name: string) => `suggest-${name}`;
+
+function useNicheSearch(onNavigate?: () => void) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   // 120 ms is short enough that the counts feel like they track the keystrokes
   // and long enough that a fast typist fires one request, not eight.
   const { data, loading } = useApi<SearchCounts>(searchPath(query), 120);
 
-  const go = (q: string) => {
+  const typed = query.trim().length >= MIN_QUERY;
+  const settled = Boolean(data && data.query.trim() === query.trim());
+  const found = settled && !!data && data.products > 0;
+
+  /**
+   * cmdk tracks the highlighted item as a *value string*, and this list swaps
+   * wholesale between suggestions and results. Left uncontrolled, that value
+   * still points at a suggestion that no longer exists, so Enter matches
+   * nothing and silently does nothing — the exact keystroke the demo depends
+   * on. Controlling it and re-pointing it whenever the list changes is the fix.
+   */
+  const [selected, setSelected] = useState(suggestValue(SUGGESTED[0]));
+  useEffect(() => {
+    setSelected(found ? OPEN_ITEM : suggestValue(SUGGESTED[0]));
+  }, [found]);
+
+  const go = (target: string) => {
     onNavigate?.();
-    router.push(`/niche?q=${encodeURIComponent(q)}`);
+    router.push(`/niche?q=${encodeURIComponent(target)}`);
   };
 
-  const typed = query.trim().length >= MIN_QUERY;
-  const settled = data && data.query.trim() === query.trim();
-  const found = settled && data.products > 0;
+  return {
+    query,
+    setQuery,
+    data,
+    loading,
+    typed,
+    settled,
+    found,
+    selected,
+    setSelected,
+    go,
+  };
+}
 
+type Search = ReturnType<typeof useNicheSearch>;
+
+function Body({ search, autoFocus }: { search: Search; autoFocus?: boolean }) {
+  const { query, setQuery, data, loading, typed, settled, found, go } = search;
   return (
     <>
       <CommandInput
@@ -70,7 +93,11 @@ export function NicheCommandBody({
         {!typed && (
           <CommandGroup heading="Try a market">
             {SUGGESTED.map((name) => (
-              <CommandItem key={name} value={name} onSelect={() => setQuery(name)}>
+              <CommandItem
+                key={name}
+                value={suggestValue(name)}
+                onSelect={() => setQuery(name)}
+              >
                 <Sparkles className="mr-2 h-4 w-4 text-primary" />
                 <span className="capitalize">{name}</span>
               </CommandItem>
@@ -99,11 +126,11 @@ export function NicheCommandBody({
           </CommandEmpty>
         )}
 
-        {typed && found && (
+        {typed && found && data && (
           <>
             <CommandGroup heading="Open this market">
               <CommandItem
-                value={`open-${query}`}
+                value={OPEN_ITEM}
                 onSelect={() => go(query)}
                 className="py-4"
               >
@@ -156,16 +183,41 @@ export function NicheCommandBody({
   );
 }
 
-export function NicheCommand(props: {
-  autoFocus?: boolean;
-  onNavigate?: () => void;
-}) {
+/** Inline palette — the hero of the landing page. */
+export function NicheCommand({ autoFocus = false }: { autoFocus?: boolean }) {
+  const search = useNicheSearch();
   return (
     <Command
       shouldFilter={false}
+      value={search.selected}
+      onValueChange={search.setSelected}
       className="rounded-xl border border-border/80 bg-card/60 backdrop-blur"
     >
-      <NicheCommandBody {...props} />
+      <Body search={search} autoFocus={autoFocus} />
     </Command>
+  );
+}
+
+/** The same palette as a ⌘K modal, available from every screen. */
+export function NicheCommandDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const search = useNicheSearch(() => onOpenChange(false));
+  return (
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      commandProps={{
+        shouldFilter: false,
+        value: search.selected,
+        onValueChange: search.setSelected,
+      }}
+    >
+      <Body search={search} autoFocus />
+    </CommandDialog>
   );
 }

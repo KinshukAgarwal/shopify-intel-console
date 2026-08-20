@@ -5,8 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Activity, Command as CommandIcon } from "lucide-react";
 
-import { CommandDialog } from "@/components/ui/command";
-import { NicheCommandBody } from "@/components/niche-command";
+import { NicheCommandDialog } from "@/components/niche-command";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -102,13 +101,7 @@ export function TopBar() {
         </div>
       </div>
 
-      <CommandDialog
-        open={open}
-        onOpenChange={setOpen}
-        commandProps={{ shouldFilter: false }}
-      >
-        <NicheCommandBody autoFocus onNavigate={() => setOpen(false)} />
-      </CommandDialog>
+      <NicheCommandDialog open={open} onOpenChange={setOpen} />
     </header>
   );
 }
